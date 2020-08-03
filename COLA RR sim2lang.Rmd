@@ -1,0 +1,222 @@
+---
+title: "COLA Registered Report for Phases 1-2"
+output: html_notebook
+---
+<!---previous file COLA RR inconsistent used to simulate data with 3 language measures. Here we try same thing with just 2 measures--->
+
+```{r sim.online, echo = FALSE}
+
+require(corrr)
+require(MASS) #for multivariate normal simulation
+library(lavaan)
+library(tidyverse)
+library(qpcR)
+#we use correlation matrix from Parker et al 2020 as basis for simulation.
+#As we don't know about new language laterality measures, we assume they will be weakly correlated, around .2, with dichotic listening, and uncorrelated with chimeric faces.
+
+mymeasures <- c('Handedness','Chimeric','Dichotic','VHFrhyme')
+allsum <- read.csv('allsum_for_matrix.csv',stringsAsFactors=F)
+wantcols <- c('X','gender','handedness','index_EHI','Day1_CF_acc_Z','Day1_Dich_acc_Z','zlat_RDT_1') 
+mycols<-which(colnames(allsum) %in% wantcols)
+trimdat <- allsum[allsum$exclude==0,wantcols]
+trimdat$Day1_CF_acc_Z <- -trimdat$Day1_CF_acc_Z #flip direction for Chimeric faces
+realcov <-cov(trimdat[,4:ncol(trimdat)],use = "complete.obs")
+realmeans <- colMeans(trimdat[,4:ncol(trimdat)],na.rm=T)
+realcorr <- correlate(trimdat[,4:ncol(trimdat)])
+
+#Check correlations for R and L handers
+right_dat<-trimdat[trimdat$index_EHI>0,]
+left_dat<-trimdat[trimdat$index_EHI<0,]
+RHcorr <- correlate(right_dat[,4:ncol(right_dat)])
+LHcorr <- correlate(left_dat[,4:ncol(left_dat)])
+```
+
+<!--- This text taken from draft RR to remind us of how this simulated data can be used--->
+
+This approach to recruitment requires that we pre-specify a definition of atypical lateralisation. Currently, there is no agreement about the measures or cutoffs to be used to identify atypical individuals in a consistent and statistically robust fashion. In the first phase of selecting individuals for study, we will adopt an inclusive criterion, to identify people with atypical laterality on any one of a battery of language tasks that are described below. We will recruit an initial sample according to handedness, with the goal of having 30% of the sample being non-right-handed. With online testing, we can gather large numbers of participants, which will be the basis for a preliminary test of the 'dissociated language laterality' hypothesis.
+
+In the second phase of the study, we will validate findings from the online measures using direct measures of brain lateralisation using fTCD on a subset of those who were screened.  We will oversample both according to hand preference, and according to laterality on the online language tasks, with the goal of achieving roughly equal numbers of left- and right-handers with (a) all language functions typically lateralised; and (b) at least one language function atypically lateralised – using a statistical criterion for atypical laterality (i.e., laterality z-score of -1.65 or less).  On the basis of simulations using the means and covariances of pilot data, we anticipate that in an initial sample of 1000 individuals with 300 left-handers and 700 right-handers, around 40% of the left-handers will have atypical laterality on at least one of the three language measures, compared with around 28% of right-handers. These numbers may seem surprisingly high, but they reflect the fact that the different language laterality measures are on the one hand only weakly associated with one another, and on the other, the population bias, while significant, is relatively weak.  For instance, if we suppose that 90% of people have typical laterality on any one task, and the tasks are uncorrelated, then the probability of being typical on all three tasks is only .9^3 = .73. We should, thus have adequate numbers to achieve a goal of 100 left-handers and 100 right-handers, half of whom are typically lateralised on all language tasks, and half of whom are atypical on at least one task. 
+
+<!--- Now we'll check what factor structure emerges if we analyse the simulated data, both in the original sample and after selecting a subset-->
+
+```{r testmodels}
+#Same AIC model as used in original online study. There we had 2 measures for each: here just one, but have additional language measure
+
+doAIC <- function(allAICdf,AICdf){
+
+      #Model 1 all independent
+    model1<-"
+
+    VHFrhyme~~0*Dichotic
+    VHFrhyme~~0*Chimeric
+    Dichotic~~0*Chimeric
+    "
+
+
+#Model 2: 2 language tasks are correlated
+    model2<-"
+    VHFrhyme~~Dichotic
+    VHFrhyme~~0*Chimeric
+     Dichotic~~0*Chimeric
+     "
+
+    
+#Model 3:all correlated
+    model3<-"
+    VHFrhyme~~Dichotic
+     VHFrhyme~~Chimeric
+    Dichotic~~Chimeric
+    "
+
+    
+for (myhand in 1:4) {
+  mydat<-right_dat
+  if(myhand==2) {mydat<-left_dat}
+  if(myhand==3){mydat<-right_dat_short}
+  if(myhand==4){mydat<-left_dat_short}
+ #Using data from this handedness type, test all 4 models
+fit1A <- cfa(model1, data=mydat)
+fit2A <- cfa(model2, data=mydat)
+fit3A <- cfa(model3, data=mydat)
+
+    aic_vector1 <- c(fitMeasures(fit1A, "aic"),fitMeasures(fit2A, "aic"),fitMeasures(fit3A, "aic"))
+   
+    #Test whether, for each model, lowest AIC obtained when the simulated data do match the model
+    # 
+    # The AIC weights make massive difference for preferred model!
+    AICweights<-akaike.weights(aic_vector1)$weights
+    # 
+ AICdf[myhand,3:5]<-round(AICweights,3)
+ }
+#flextable(AICdf)
+
+allAICdf<-rbind(allAICdf,AICdf)
+return(allAICdf)}
+
+```
+
+Just make things into functions so can run multiple times
+
+```{r corebit}
+
+
+
+
+ for (j in 1:3){ #use 1) sim zero; 2) sim langr = .5; 3) sim allr=.5, 4)real data; 
+   #Make a little dataframe for AIC weights
+allAICdf<- data.frame(matrix(NA,nrow=4,ncol=5))
+allAICdf[,2]<-c('Right-handers_all','Left-handers_all','Right-handers_sample','Left-handers_sample')
+allAICdf[,1]<-j
+colnames(allAICdf)<-c('Basedata','Handedness','Model1','Model2','Model3')
+AICdf<-allAICdf
+nsims=1000
+AICdf$Basedata<-j
+   if (j==4)
+   {totmeans <- realmeans
+     totcov <- realcov}
+   if(j<4)
+   {totmeans <- c(.5,.5,.5,.5)
+     totcov <- matrix(c(1,0,0,0,
+                           0,1,0,0,
+                           0,0,1,0,
+                           0,0,0,1),nrow=4,ncol=4)}
+   if(j==2){
+        totcov <- matrix(c(1,0,0,0,
+                           0,1,.0,0,
+                           0,.0,1,.5,
+                           0,0,.5,1),ncol=4)}
+      if(j==3){
+        totcov <- matrix(c(1,0,0,0,
+                           0,1,.5,.5,
+                           0,.5,1,.5,
+                           0,.5,.5,1),ncol=4)}
+ 
+for (i in 1:nsims){
+myN <- 10000
+mysimdat <- as.data.frame(mvrnorm(myN,m=totmeans,Sigma=totcov))
+#Note this works badly for EHI, given that it is so non-normal - it creates EHI indices that are out of range. We will ignore this for now.
+
+colnames(mysimdat)<-mymeasures
+
+#New columns for atypical laterality
+
+mysimdat$Ahand <- 0
+mysimdat$Ahand[mysimdat$Handedness<0]<-1
+mysimdat$Adich <- 0
+mysimdat$Adich[mysimdat$Dichotic<0]<-1
+mysimdat$Arhyme <- 0
+mysimdat$Arhyme[mysimdat$VHFrhyme<0]<-1
+mysimdat$Atotlang <- mysimdat$Adich+mysimdat$Arhyme
+mysimdat$Aanylang <- mysimdat$Atotlang
+mysimdat$Aanylang[mysimdat$Atotlang<0]<-1
+
+#pick samples
+selsamplesize <- 120 #sample size for each handedness group
+halfsample <- selsamplesize/2
+right_dat<-mysimdat[mysimdat$Handedness>0,]
+left_dat<-mysimdat[mysimdat$Handedness<0,]
+w<-which(right_dat$Aanylang==1)
+pickcols <- sample(w,halfsample)
+w<-which(right_dat$Aanylang==0)
+pickcols2 <- sample(w,halfsample)
+right_dat_short <- right_dat[c(pickcols,pickcols2),]
+w<-which(left_dat$Aanylang==1)
+pickcols <- sample(w,halfsample)
+w<-which(left_dat$Aanylang==0)
+pickcols2 <- sample(w,halfsample)
+left_dat_short <- left_dat[c(pickcols,pickcols2),]
+
+#Above is the method where selection on basis of atypical language.
+#Alternative: just take 100 L and 100 Rhanders
+selection100 <- 1 #this loop if ignoring latearlity in selection
+if(selection100==1){
+pickcols <- sample(myN,selsamplesize) #we can use same indices for LH and RH - they are unrelated samples
+right_dat_short <- right_dat[pickcols,]
+left_dat_short <- left_dat[pickcols,]
+}
+
+
+AICdf<-doAIC(allAICdf,AICdf)
+
+
+} #next i
+
+AICdf<-AICdf[-c(1:4),]
+AICdf$max<-NA
+AICdf$maxmodel<-NA
+for (ii in 1:nrow(AICdf)){
+  AICdf$max[ii]<-max(AICdf[ii,3:5])
+  mymax<-AICdf$max[ii]
+  AICdf$maxmodel[ii]<-which(AICdf[ii,3:5]==mymax)[1] #may be more than one match, just take 1st (v rare to have more than one!)
+} #next ii
+table(AICdf$Handedness,AICdf$maxmodel)
+
+write.csv(AICdf,paste0('AICdf2lang_sim',j,'.csv'),row.names=F)
+} #next j
+
+AICdf <- read.csv('AICdf2lang_sim3.csv',stringsAsFactors=F)
+add2 <- read.csv('AICdf2lang_sim2.csv',stringsAsFactors=F)
+AICdf <- rbind(add2,AICdf)
+add1 <- read.csv('AICdf2lang_sim1.csv',stringsAsFactors=F)
+AICdf <- rbind(add1,AICdf)
+write.csv(AICdf,paste0('AICdf2lang_sim_nsel',selsamplesize,'.csv'),row.names=F)
+
+table(AICdf$Handedness,AICdf$maxmodel,AICdf$Basedata)
+```
+
+Results from model with 3 language measures indicates that even with 1000, models are hard to distinguish. On 500 runs of simulation, winning model is...
+
+                         1   2   3
+  Left-handers_all     275 108 117
+  Left-handers_sample  357  72  71
+  Right-handers_all    140 124 236
+  Right-handers_sample 383  64  53
+  
+  Model 1: all independent, model 2, language only correlated, model 3 single factor.
+  
+  Now tried with simulated data: this confirms that selecting on any atypical language laterality induces dependence - so when really no correlation, you get model 2 favoured.
+  It also shows that model differentiation not great with sample of 1000?
+  
+  Let's try again with unselected samples of 100 of each handedness
+  
+  
