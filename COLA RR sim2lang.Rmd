@@ -2,25 +2,36 @@
 title: "COLA Registered Report for Phases 1-2"
 output: html_notebook
 ---
-<!---previous file COLA RR inconsistent used to simulate data with 3 language measures. Here we try same thing with just 2 measures--->
+<!---THIS IS NOW SUPERSEDED - Retained only for historic purposes. It uses the Kievit method for testing predicted correlation patterns, - as used in Parker et al 2020. 
+It assumes we still have chimeric faces, which is no longer the case.
+Also superseded is the previous file COLA RR inconsistent used to simulate data with 3 language measures. Here we try same thing with just 2 measures--->
 
-```{r sim.online, echo = FALSE}
+```{r mypackages, echo = FALSE}
 
 require(corrr)
 require(MASS) #for multivariate normal simulation
 library(lavaan)
 library(tidyverse)
 library(qpcR)
-#we use correlation matrix from Parker et al 2020 as basis for simulation.
-#As we don't know about new language laterality measures, we assume they will be weakly correlated, around .2, with dichotic listening, and uncorrelated with chimeric faces.
+```
 
+```{r inspect.realdata, echo=FALSE}
+# For naturalistic data we use correlation matrix from Parker et al 2020 as basis for simulation.
+# We also test ability to detect right model with different sample sizes with prespecified correlation structure.
+
+# Read real data
 mymeasures <- c('Handedness','Chimeric','Dichotic','VHFrhyme')
 allsum <- read.csv('allsum_for_matrix.csv',stringsAsFactors=F)
 wantcols <- c('X','gender','handedness','index_EHI','Day1_CF_acc_Z','Day1_Dich_acc_Z','zlat_RDT_1') 
 mycols<-which(colnames(allsum) %in% wantcols)
 trimdat <- allsum[allsum$exclude==0,wantcols]
 trimdat$Day1_CF_acc_Z <- -trimdat$Day1_CF_acc_Z #flip direction for Chimeric faces
+trimdat$index_EHI <- trimdat$index_EHI/10 #just to make scale less different from others
+
+#The covariance matrix is what we want for rmvnorm
 realcov <-cov(trimdat[,4:ncol(trimdat)],use = "complete.obs")
+#Note, handedness is on a v different scale
+#rmvnorm also requires means
 realmeans <- colMeans(trimdat[,4:ncol(trimdat)],na.rm=T)
 realcorr <- correlate(trimdat[,4:ncol(trimdat)])
 
@@ -29,6 +40,8 @@ right_dat<-trimdat[trimdat$index_EHI>0,]
 left_dat<-trimdat[trimdat$index_EHI<0,]
 RHcorr <- correlate(right_dat[,4:ncol(right_dat)])
 LHcorr <- correlate(left_dat[,4:ncol(left_dat)])
+RHcorr
+LHcorr
 ```
 
 <!--- This text taken from draft RR to remind us of how this simulated data can be used--->
@@ -40,7 +53,7 @@ In the second phase of the study, we will validate findings from the online meas
 <!--- Now we'll check what factor structure emerges if we analyse the simulated data, both in the original sample and after selecting a subset-->
 
 ```{r testmodels}
-#Same AIC model as used in original online study. There we had 2 measures for each: here just one, but have additional language measure
+#Same AIC model as used in original online study. There we had 2 measures for each: here just one
 
 doAIC <- function(allAICdf,AICdf){
 
@@ -68,7 +81,7 @@ doAIC <- function(allAICdf,AICdf){
     Dichotic~~Chimeric
     "
 
-    
+#Will do the model fitting for full simulated sample and for a subset
 for (myhand in 1:4) {
   mydat<-right_dat
   if(myhand==2) {mydat<-left_dat}
@@ -95,12 +108,10 @@ return(allAICdf)}
 
 ```
 
-Just make things into functions so can run multiple times
+We will run the AIC function on simulated data with various properties.
+On each run, we simulate a dataset fitting a particular model (j loop specifies which model type)
 
 ```{r corebit}
-
-
-
 
  for (j in 1:3){ #use 1) sim zero; 2) sim langr = .5; 3) sim allr=.5, 4)real data; 
    #Make a little dataframe for AIC weights
@@ -109,7 +120,7 @@ allAICdf[,2]<-c('Right-handers_all','Left-handers_all','Right-handers_sample','L
 allAICdf[,1]<-j
 colnames(allAICdf)<-c('Basedata','Handedness','Model1','Model2','Model3')
 AICdf<-allAICdf
-nsims=1000
+nsims=500
 AICdf$Basedata<-j
    if (j==4)
    {totmeans <- realmeans
@@ -132,13 +143,13 @@ AICdf$Basedata<-j
                            0,.5,.5,1),ncol=4)}
  
 for (i in 1:nsims){
-myN <- 10000
+myN <- 1000
 mysimdat <- as.data.frame(mvrnorm(myN,m=totmeans,Sigma=totcov))
 #Note this works badly for EHI, given that it is so non-normal - it creates EHI indices that are out of range. We will ignore this for now.
 
 colnames(mysimdat)<-mymeasures
 
-#New columns for atypical laterality
+#New columns for atypical laterality: not currently used, but were previously used to select samples overrepresentative for atypical laterality
 
 mysimdat$Ahand <- 0
 mysimdat$Ahand[mysimdat$Handedness<0]<-1
@@ -150,8 +161,9 @@ mysimdat$Atotlang <- mysimdat$Adich+mysimdat$Arhyme
 mysimdat$Aanylang <- mysimdat$Atotlang
 mysimdat$Aanylang[mysimdat$Atotlang<0]<-1
 
-#pick samples
-selsamplesize <- 120 #sample size for each handedness group
+#pick samples - assuming we are overselecting atypicals
+#(This gets overwritten below if we set 'selection100' to 1.)
+selsamplesize <- 80 #sample size for each handedness group
 halfsample <- selsamplesize/2
 right_dat<-mysimdat[mysimdat$Handedness>0,]
 left_dat<-mysimdat[mysimdat$Handedness<0,]
@@ -167,23 +179,27 @@ pickcols2 <- sample(w,halfsample)
 left_dat_short <- left_dat[c(pickcols,pickcols2),]
 
 #Above is the method where selection on basis of atypical language.
-#Alternative: just take 100 L and 100 Rhanders
-selection100 <- 1 #this loop if ignoring latearlity in selection
+
+#Alternative: just take N Left and N Rhanders
+selection100 <- 1 #this loop if ignoring LIs in selection
+myNR <- 80 #model with ratio of 2:3 right:left-handers
+myNL <- 120
 if(selection100==1){
-pickcols <- sample(myN,selsamplesize) #we can use same indices for LH and RH - they are unrelated samples
+pickcols <- sample(myNR) 
 right_dat_short <- right_dat[pickcols,]
-left_dat_short <- left_dat[pickcols,]
+pickcols <- sample(myNL)
+left_dat_short <- left_dat[pickcols,] 
 }
 
 
-AICdf<-doAIC(allAICdf,AICdf)
+AICdf<-doAIC(allAICdf,AICdf) #run the models and add the AICweights to AICdf
 
 
 } #next i
 
-AICdf<-AICdf[-c(1:4),]
-AICdf$max<-NA
-AICdf$maxmodel<-NA
+AICdf<-AICdf[-c(1:4),] #drop first 4 rows - are blank
+AICdf$max<-NA #max is AICwt for  best-fitting model
+AICdf$maxmodel<-NA #maxmodel is best-fitting model
 for (ii in 1:nrow(AICdf)){
   AICdf$max[ii]<-max(AICdf[ii,3:5])
   mymax<-AICdf$max[ii]
@@ -194,17 +210,22 @@ table(AICdf$Handedness,AICdf$maxmodel)
 write.csv(AICdf,paste0('AICdf2lang_sim',j,'.csv'),row.names=F)
 } #next j
 
+#After doing all simulation types, we bolt together the AICdf files
+
 AICdf <- read.csv('AICdf2lang_sim3.csv',stringsAsFactors=F)
 add2 <- read.csv('AICdf2lang_sim2.csv',stringsAsFactors=F)
 AICdf <- rbind(add2,AICdf)
 add1 <- read.csv('AICdf2lang_sim1.csv',stringsAsFactors=F)
 AICdf <- rbind(add1,AICdf)
-write.csv(AICdf,paste0('AICdf2lang_sim_nsel',selsamplesize,'.csv'),row.names=F)
+write.csv(AICdf,paste0('AICdf2lang_sim_nsel80_120.csv'),row.names=F)
 
 table(AICdf$Handedness,AICdf$maxmodel,AICdf$Basedata)
 ```
 
-Results from model with 3 language measures indicates that even with 1000, models are hard to distinguish. On 500 runs of simulation, winning model is...
+This concerns simulation based on real life data from Parker et al 2020  
+Results from model with 3 language measures indicates that even with N=1000, models are hard to distinguish. On 500 runs of simulation, winning model is...
+
+NB this was version where atypical laterality oversampled: can see its effect on the 'all' vs 'sample' estimates. (the sample values will also be less accurate because low N, but this does not explain extent of bias introduced)
 
                          1   2   3
   Left-handers_all     275 108 117
@@ -215,8 +236,8 @@ Results from model with 3 language measures indicates that even with 1000, model
   Model 1: all independent, model 2, language only correlated, model 3 single factor.
   
   Now tried with simulated data: this confirms that selecting on any atypical language laterality induces dependence - so when really no correlation, you get model 2 favoured.
-  It also shows that model differentiation not great with sample of 1000?
+
   
-  Let's try again with unselected samples of 100 of each handedness
+  Let's try again with selection only on basis of handedness.
   
   
