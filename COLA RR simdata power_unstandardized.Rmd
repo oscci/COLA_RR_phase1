@@ -1,0 +1,308 @@
+---
+title: "COLA Registered Report: Sample size justification"
+date: "10th August 2020"
+output: bookdown::word_document2
+bibliography: power.bib
+---
+
+```{r Rpackage_setup, include=FALSE}
+#need to install semPower from github on first run
+knitr::opts_chunk$set(echo = TRUE)
+library("devtools")
+#install_github("moshagen/semPower")
+library(semPower)
+library(bookdown)
+library(lavaan)
+library(semPlot)
+# library(knitr)
+# library(kableExtra)
+library(tidyverse)
+library(flextable)
+library(officer)
+library(corrr) #easy correlations
+options(scipen=999)
+```
+<!---started by DVMB 10th August 2020 when new RR document created on Google docs.
+NB output and bibliography statements from Paul--->
+# Registered report: Inconsistent language lateralisation: evidence from behaviour and lateralised cerebral blood flow
+ 
+## The COLA Consortium*
+ 
+*Dorothy V. M. Bishop^1^, David Carey^2^, Margriet A. Groen^3^, Eva Gutierrez-Sigut^4,7^, Jessica Hodgson^5^, John Hudson^6^, Emma Karlsson^2^, Mairéad MacSweeney^7^, Heather Payne^7, Nuala Simpson^1^, Paul A. Thompson^1^, Kate E. Watkins^1^, Ciara Egan^1,2^, Jack H. Grant^1,6^, Sophie Harte^1,7^, Brad Hudson^1,3^, Adam J. Parker^1^, Zoe V. J. Woodhead^1^.
+ 
+^1^Department of Experimental Psychology, University of Oxford  
+^2^School of Psychology, Bangor University  
+^3^Department of Psychology, Lancaster University  
+^4^Department of Psychology, University of Essex  
+^5^Lincoln Medical School, University of Lincoln  
+^6^School of Psychology, University of Lincoln  
+^7^Deafness, Cognition and Language Research Centre, University College London  
+
+
+
+## Abstract
+Most people have strong left-brain lateralisation for language, with a minority showing right- or bilateral language representation. On some receptive language tasks, however, lateralisation appears to be reduced or absent. This raises the question of whether and how language laterality may fractionate within individuals. Our primary hypothesis builds on prior work and postulates that there can be dissociations in lateralisation of different language functions, especially in left-handers, who may have different aspects of language function mediated by opposite hemispheres.  A subsidiary hypothesis is that laterality indices will cluster according to how far they involve generation of words or sentences, vs receptive language. We plan to test these predictions in two stages: a) Study of 1000 individuals (300 non-right-handers) using an online battery of laterality tasks; b) In 200 of these individuals (120 left-handed), assessment of laterality for six language tasks using functional transcranial Doppler ultrasound (fTCD). As well as providing data to test our main hypothesis, the project will generate an open dataset for studies of individual differences in language lateralisation, making it possible to study the functional consequences of atypical lateralisation, and help develop optimal methods for assessing language lateralisation in clinical contexts.
+
+<!--- See Registered Report_COLA20200808, on OneDrive/Oscci mss 2016-/ongoing/COLA RR for main intro. This corresponds to Google docs manuscripts and will change, so for now we just focus on Hypotheses/Predictions so that we can simulate a dataset for analysis and do power analysis --->
+
+## Hypotheses
+
+Hypotheses
+
+The overarching hypothesis is that there are dissociations in lateralisation of different language functions, especially in left-handers.  A subsidiary hypothesis is that laterality indices from tasks that primarily implicate language generation and receptive language will form separate clusters.
+ 
+### Predictions
+
+_Online measures_  
+1. On the online battery, dichotic and visual-half-field tasks will show significant left-brain lateralisation at the group level, with this effect being stronger in right- than left-handers.  
+2. The pattern of correlation between laterality indices from online measures will reflect the extent to which they involve implicit speech production, rather than whether they involve spoken or written language. Thus we anticipate dissociation between the rhyme judgement task and the other two measures, which is not accountable for in terms of low reliability of measures. 
+_FTCD measures_  
+3. The data will fit a model where 'language generation' tasks cluster together on one factor, and 'receptive' language tasks on a second factor.  The factors will be correlated, but the fit of a 2-factor model will be superior to a single-factor model.  
+4. The pattern of covariances will differ for right-handers and left-handers, with better model fit being obtained when separate loadings and covariances are estimated for left- vs right-handers. Specifically, we predict a lower correlation between the two factors in left-handers vs. right-handers.
+5. On categorical analysis, individuals who depart from left-brained laterality on one or more tasks will be more likely to be left-handed than those who are consistently left-lateralised.  
+_Relationship between fTCD and behavioural laterality indices_  
+6. The laterality profile obtained with the online language battery will be significantly associated with the profile seen with direct measure of cerebral blood flow using fTCD, with laterality on dichotic listening relating more strongly to receptive language tasks, and visual-half-field language measures to language generation tasks.   
+
+# Sample size justification
+
+The sample size is determined not solely by statistical power, though we aim for 90% power for key analyses. In addition, we take into consideration the fact that this is a two-stage study, with online testing followed by in-person testing. Recruitment for online testing is considerably easier and less costly than in-person testing. The timing of in-person testing remains uncertain due to pandemic restrictions, and this means that we may see considerable attrition between stages 1 and 2. Our strategy is first to determine sample size based on power considerations for stage 2, then to double that sample size for online testing, assuming there will be 50% attrition between stages 1 and 2. In addition, we check the power that this gives us for stage 1 testing. Accordingly, we report power analyses in reverse order for stage 2 and then stage 1.
+
+
+## Single group confirmatory factor analysis models (one vs two factor)
+
+Sample size determination has two aspects: 1. We need to have sufficient sample size to fit individual models with acceptable fit indices, regardless of whether these are one factor or two factor; 2. There should be adequate power to detect the misspecified model (one factor) vs the ‘true’ model (two factor). For the first point, we use the Monte Carlo simulation results for Confirmatory Factor Analysis (CFA) presented by Wolf et al (2013) @Wolf_2013. These authors reported results from a range of simple CFA models, varying numbers of factors, numbers of measured variables, and magnitudes of factor loadings, in order to evaluate statistical power, bias in parameter estimates and incidence of model convergence problems. Our proposed model comes closest to their simulation of a 2-factor model with 3 indicators per factor; the minimum sample size required to achieve 80% power depends on the strength of factor loadings, ranging between 120-200 for loadings of .65 or .8 respectively. This is in line with our next analysis, which estimates power to detect the difference between a one- and two-factor model.
+
+
+### Power estimate for the model comparison of proposed 'true' model vs proposed mispecified model.
+
+The `R` package `semPower` [@Moshagen_2016] can be used to calculate the power for detecting a difference between nested models, one factor vs two factors, using data simulated from both models. Our model comparison is closely similar to that used in the vignette for the semPower package by @Moshagen_2020. Moshagen (2020) provides one example where the interest is in whether responses on 8 items reflect two separate but correlated factors, or whether they can be described by a single factor, which is directly parallel to our prediction 3.  
+
+A further example illustrates a power test for invariance constraints in a multiple group model, where the question is whether a model with freely estimated loadings performs better than a model where loadings are equal for two groups: this addresses our prediction 4.  
+
+The starting point for both examples is a two-group model. Here we use scripts from these two examples with modifications to adapt the code for characteristics of our data. 
+
+![2 factor model](/Users/dorothybishop/deevybee_repo/COLA_RR_phase1_2/factorpic.jpg)
+We first need to define a suitable model that describes the true situation in the population. In our case, we use relevant data from our previous study (Woodhead et al, 2019, 2020) to guide our estimates. This had data from six measures, four of which we plan to use in the current study, two loading on each of the postulated factors. These are Sentence Generation, Phonological Decision, Syntactic Decision and Sentence Comprehension; we term these x1, x2, x4 and x5. The additional two measures, x3 and x6, are selected to act as additional indicators of the receptive language and language generation factors respectively. To simulate data for x1, x2, x4 and x5 we use Session 1 LIs from the Woodhead et al data, and to simulate x3 we take the mean from Session 2 for x1 and x2; to simulate x6 we take the mean from x4 and x5 from Session 2. This generates a correlation matrix as shown in Table x. 
+
+  
+```{r sim.online, echo = FALSE}
+#base predictions on observed data from study A2
+myA2 <- read.csv('https://osf.io/fr5na/download') #read from OSF stored file
+#We will have 2 new measures, one for factor A and one for factor B
+#To simulate data, we will assume that we can estimate these by taking mean of the other two variables loading on that factor from the 2nd session - i.e. the data are independent from session 1.
+#simulate correlation matrix by taking Factor A:
+#PhonDec1,SentGen1 and mean PhonDec2/SentGen2
+#vs Factor B: SentComp1,Jabber1,and mean SentComp2/Jabber2
+myA2$PhonSent2 <- (myA2$PhonDec2+myA2$SentGen2)/2
+myA2$CompJabb2 <- (myA2$SentComp2+myA2$Jabber2)/2 #(was wrongly specified as SentGen2 in original script)
+corrcolumns <- c(3,5,33,6,7,34)
+
+
+my_A2<-na.omit(myA2[,c(32,3,5,33,6,7,34)]) #just handedness and the 6 columns of interest retained
+colnames(my_A2)<- c('hand','x1','x2','x3','x4','x5','x6')
+mycortab <- correlate(my_A2[,2:7]) #check that correlation pattern looks realistic
+ft<-flextable(mycortab)
+ft <- colformat_num(x = ft,digits = 2)
+ft <-set_caption(x=ft,"Correlations: simulated population model")
+ft
+
+#Recording the means and sds by handedness here - helps interpretation later
+#Left handers have larger sd for all
+myagmean <- aggregate(my_A2[,2:7],by=list(my_A2$hand),FUN=mean)
+myagsd <- aggregate(my_A2[,2:7],by=list(my_A2$hand),FUN=sd)
+```
+
+We next need to specify loadings for a population model compatible with our simulated data. Here we first derive loadings from fitting the simulated (my_A2) data.
+```{r getloadings}
+model.2f <- '
+f1 =~ x1 + x2  + x3 
+f2 =~ x4 + x5  +x6 
+'
+fit.mod2f <- cfa(model.2f,data=my_A2)
+#summary(fit.mod2f, fit.measures=TRUE)
+
+mys <- coef(fit.mod2f)#unstandardized coefficients; f1-x1 and f2-x4 are fixed at 1
+mys <- c(1,coef(fit.mod2f)[1:2],1,coef(fit.mod2f)[3:13])
+```
+We defined a 'true' two-factor population model, H0, using these factor loadings. This will be compared with an alternative, H1, single-factor model. In effect, we ask whether these two models could be differentiated on the basis of the covariance matrix from the simulated data.
+
+
+```{r makepopmodel}
+# define population model (= H0)
+# Creating the formula using paste is rather confusing, but it does ensure we plug the correct loadings in to the model
+model.pop<-paste0('f1 =~  x1 + ',
+                  mys[2],'* x2 + ',
+                  mys[3],'* x3  
+                  f2 =~  x4 + ',
+                  mys[5],'* x5 + ',
+                  mys[6],'* x6  
+                  f1~~', mys[15 ],'*f2')
+
+# define (wrong) H1 model - f1 and f2 perfectly correlated, ie one factor
+model.h1 <- '
+f1 =~ x1 + x2 + x3
+f2 =~ x4 + x5 + x6
+
+f1 ~~ 1*f2
+
+' 
+```
+Now we make a predicted covariance matrix for the population model and the alternative 1-factor model.
+
+```{r popcov}
+
+# get population covariance matrix; equivalent to a perfectly fitting H0 model
+cov.h0 <- fitted(sem(model.pop))$cov
+# get covariance matrix as implied by H1 model
+res.h1 <- sem(model.h1, sample.cov = cov.h0, sample.nobs = 1000, likelihood='wishart')
+df <- res.h1@test[[1]]$df
+cov.h1 <- fitted(res.h1)$cov
+```
+
+```{r dopower}
+# perform power analysis specifying 90% power
+ap_1vs2 <- semPower.aPriori(SigmaHat = cov.h1, Sigma = cov.h0, alpha = .05, power = .90, df = df)
+summary(ap_1vs2) #displays all content
+#this gives required N for 90% power of 127
+```
+
+This analysis estimates that for 90% power, we require a minimum sample size of `r ap$requiredN`.
+
+
+## Multigroup model (two factor multigroup CFA - left and right handers groups)
+
+This analysis is based on the second extended example in the semPower manual.  
+We fit our two-factor model to two groups (left- and right-handers) and are interested in whether the loadings and covariance between factors are invariant across groups. Here we compare a model with freely estimated parameters against a model restricting the parameters to be equal across groups. If the the fit of the latter model is significantly worse, this supports the conclusion that the underlying covariance structure differs for the two groups. As stated in the manual "In terms of power analyses, the misfit associated with a model assuming equal loadings across groups when, in reality, at least one loading differs, defines the magnitude of effect, which we want to detect with a sufficient power." 
+
+We first specify a population model for each of the two groups. As before, we will use the my_A2 data to derive estimated loadings, this time separately for each handedness group.
+
+```{r leftrightcovs}
+#These were computed for sanity check, but not used
+cov.sampleR<-cov(my_A2[my_A2$hand=='R',2:7])
+cov.sampleL<-cov(my_A2[my_A2$hand=='L',2:7])
+meansR <- colMeans(my_A2[my_A2$hand=='R',2:7])
+meansL <- colMeans(my_A2[my_A2$hand=='L',2:7])
+
+```
+
+
+First we derive indices for a population model for each group by fitting the two factor model to data from our simulated population data, my_A2, this time differentiating by handedness group. We also specify 'meanstructure' to allow us to see how means differ between handedness groups, though this is not a central feature of interest for this analysis.  
+```{r model2fac}
+
+model.2f <- '
+f1 =~ x1 + x2  + x3 
+f2 =~ x4 + x5  + x6 
+'
+
+fit.mod2f <- cfa(model.2f,data=my_A2,group="hand", meanstructure=T)
+summary(fit.mod2f, fit.measures=TRUE)
+
+A6.coef <- coef(fit.mod2f) #try using parameters from standardized solution in population model
+
+#We will wrangle this into a table to make it easier to compare groups.
+A6.coeftab<-data.frame(matrix(NA,nrow=19,ncol=3))
+colnames(A6.coeftab)<-c('Estimate','Rhander','Lhander')
+A6.coeftab$Estimate<-names(A6.coef)[1:19]
+A6.coeftab$Rhander <- round(A6.coef[1:19],3)
+A6.coeftab$Lhander <- round(A6.coef[20:38],3)
+
+ft<-flextable(A6.coeftab)
+ft <-set_caption(x=ft,"Two-factor model: estimated loadings for right- and left-handers")
+ft
+
+```
+
+We use the estimated factor loadings and covariance to specify separate population models for the two groups.  
+```{r semPowerextended.eg}
+#population model group 1 
+
+model.pop.R<-paste0('f1 =~  x1 + ',
+                  A6.coeftab[1,2],'* x2 + ',
+                 A6.coeftab[2,2],'* x3  
+                  f2 =~  x4 + ',
+                 A6.coeftab[3,2],'* x5 + ',
+                 A6.coeftab[4,2],'* x6  
+                  f1~~', A6.coeftab[13,2],'*f2')
+#population model group 2 
+model.pop.L<-paste0('f1 =~  x1 + ',
+                  A6.coeftab[1,3],'* x2 + ',
+                 A6.coeftab[2,3],'* x3  
+                  f2 =~  x4 + ',
+                 A6.coeftab[3,3],'* x5 + ',
+                 A6.coeftab[4,3],'* x6  
+                  f1~~', A6.coeftab[13,3],'*f2')
+
+```
+
+Now we work out population covariances for the 2 groups
+```{r groupLRcovs}
+cov.pop.R <- fitted(sem(model.pop.R))$cov
+cov.pop.L <- fitted(sem(model.pop.L))$cov
+
+```
+
+Next we define and estimate analysis model, setting loadings, latent variable covariances, residuals and latent variable variables to be equal - i.e. the alternative model tests whether the fit is as good when the simulated data are tested against a simpler model that has same parameters for both handedness groups.
+
+```{r commonmodel_for_L_and R}
+model.hcommon <- '
+f1 =~ x1+x2+x3
+f2 =~ x4+x5+x6
+'
+
+# fit analysis model to population data; note the sample.nobs are arbitrary
+fit.hcommon <- sem(model.hcommon, sample.cov = list(cov.pop.R, cov.pop.L), sample.nobs = list(1000, 1000), group.equal = c('loadings','lv.covariances','residual.covariances','residuals','lv.variances'), likelihood='wishart',meanstructure=T)
+# get model implied covariance matrices
+cov.hcommon.R<- fitted(fit.hcommon)$`Group 1`$cov
+cov.hcommon.L <- fitted(fit.hcommon)$`Group 2`$cov
+# store df
+df <- fit.hcommon@test[[1]]$df
+
+```
+
+We can now perform power-analysis by using the population covariances and the covariance matrices implied by the alternative model.  
+
+```{r power.apriori eval=FALSE}
+# perform a priori power analysis
+# Note that lavaan handles multiple group models by having covariance matrices specified as lists containing the associated matrices for each group.  
+ap_LH_RH <- semPower.aPriori(SigmaHat = list(cov.hcommon.R, cov.hcommon.L), 
+                        Sigma = list(cov.pop.R, cov.pop.L), 
+                        alpha = .05, power=.9, N=list(2,3),df = df)
+
+summary(ap_LH_RH)
+
+ph_LH_RH <- semPower.postHoc(SigmaHat = list(cov.hcommon.R, cov.hcommon.L), 
+                        Sigma = list(cov.pop.R, cov.pop.L), 
+                        alpha = .05, N=list(80,120),df = df)
+summary(ph_LH_RH)
+
+```
+
+The power analysis gives a minimum sample size of `r ap6a$requiredN`. This was lower than anticipated, but it should be noted that we are testing the fit of a common model that assumes not just common loadings and covariance between factors, but also variances of the observed and latent variables. One aspect of the data from Woodhead et al (2020), on which our estimates of the population model are based, was that variances were higher in the left-handers vs. right-handers for the observed variables that loaded on to the second (receptive language) factor.  For right-handers, variances for x4, x5, and x6 were `r cov.pop.R[4,4]`, `r cov.pop.R[5,5]`, and `r cov.pop.R[6,6]`; for left-handers, the corresponding values were `r cov.pop.L[4,4]`, `r cov.pop.L[5,5]`, and `r cov.pop.L[6,6]`.
+
+Overall, the two analyses conducted with simSem concur with the data from Wolf et al (2013) in suggesting that a total sample size of 200 should be adequate for testing between a single-factor vs two-factor model, and for testing whether the same model parameters can be assumed for left- and right-handers. 
+
+This analysis assumes that our two new measures will behave as expected. This seems reasonable for Word Generation, which is a well-established measure for indexing laterality of language generation, often adopted as a gold standard in research with fTCD. The other new measure, word comprehension, is justified on theoretical grounds but has no track record in this field.
+
+<!--- I have tried to work out the impact of including a poor measure, but I can't work out how best to do this. Here's what I tried:
+In a final analysis, we consider how far the data would be able to distinguish the one-factor from the two-factor model if one indicator of the second factor was very weak. We do this by adding a substantial random element to variable x6.--->
+
+```{r sim.badmeasure, echo=FALSE, include=FALSE}
+my_A2_bad <- my_A2
+erroradd <- rnorm(nrow(my_A2),0,1)
+myorig <- my_A2$x6
+mynew <- (2*erroradd+myorig)/3
+my_A2_bad$x6 <- mynew
+covbad <- cov(my_A2_bad[,2:7])
+
+model.2facb <- '
+f1 =~ x1+x2+x3
+f2 =~ x4+x5+x6
+'
+
+fit.bad <- sem(model.2facb, sample.cov = covbad, sample.nobs = 1000, likelihood='wishart')
+summary(fit.bad)
+
+fit.orig <- sem(model.2facb,sample.cov = cov(my_A2[,2:7]),sample.nobs = 1000, likelihood='wishart')
+
+```
+
