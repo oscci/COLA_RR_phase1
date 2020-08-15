@@ -9,30 +9,28 @@ bibliography: power.bib
 #need to install semPower from github on first run
 knitr::opts_chunk$set(echo = TRUE)
 library("devtools")
-#install_github("moshagen/semPower")
+#install_github("moshagen/semPower") #use github version rather than CRAN
 library(semPower)
 library(bookdown)
 library(lavaan)
 library(semPlot)
-# library(knitr)
-# library(kableExtra)
 library(tidyverse)
 library(flextable)
 library(officer)
 library(corrr) #easy correlations
-options(scipen=999)
-library(pwr)
-library(MASS)
+library(pwr) #power analysis for common stats tests
+library(MASS) #multivariate normal simulation
 library(qpcR) #used in Kievit script
+options(scipen=999)
 ```
 <!---started by DVMB 10th August 2020 when new RR document created on Google docs.
 NB output and bibliography statements from Paul--->
 # Registered report: Inconsistent language lateralisation: evidence from behaviour and lateralised cerebral blood flow
- 
+
 ## The COLA Consortium*
- 
+
 *Dorothy V. M. Bishop^1^, David Carey^2^, Margriet A. Groen^3^, Eva Gutierrez-Sigut^4,7^, Jessica Hodgson^5^, John Hudson^6^, Emma Karlsson^2^, Mairéad MacSweeney^7^, Heather Payne^7, Nuala Simpson^1^, Paul A. Thompson^1^, Kate E. Watkins^1^, Ciara Egan^1,2^, Jack H. Grant^1,6^, Sophie Harte^1,7^, Brad Hudson^1,3^, Adam J. Parker^1^, Zoe V. J. Woodhead^1^.
- 
+
 ^1^Department of Experimental Psychology, University of Oxford  
 ^2^School of Psychology, Bangor University  
 ^3^Department of Psychology, Lancaster University  
@@ -53,7 +51,7 @@ Most people have strong left-brain lateralisation for language, with a minority 
 Hypotheses
 
 The overarching hypothesis is that there are dissociations in lateralisation of different language functions, especially in left-handers.  A subsidiary hypothesis is that laterality indices from tasks that primarily implicate language generation and receptive language will form separate clusters.
- 
+
 ### Predictions
 
 _Online measures_  
@@ -88,7 +86,7 @@ The starting point for both examples is a two-group model. Here we use modified 
 
 We first need to define a suitable model that describes the true situation in the population. In our case, we use relevant data from our previous study (Woodhead et al, 2019, 2020) to guide our estimates. This had data on 30 left-handers and 40 right-handers from six measures, four of which we plan to use in the current study, two loading on each of the postulated factors. These are Sentence Generation, Phonological Decision, Syntactic Decision, and Sentence Comprehension; we term these x1, x2, x4 and x5. The additional two measures, x3 and x6, correspond to Word Generation and Word Comprehension, which are selected to act as additional indicators of the language generation and receptive language factors respectively. To simulate data for x1, x2, x4 and x5 we use Session 1 LIs from the Woodhead et al data, and to simulate x3 we take the mean from Session 2 for x1 and x2; to simulate x6 we take the mean from x4 and x5 from Session 2. This generates a correlation matrix as shown in Table x. 
 
-  
+
 ```{r sim.online, echo = FALSE}
 #base predictions on observed data from study A2
 myA2 <- read.csv('https://osf.io/fr5na/download') #read from OSF stored file
@@ -222,19 +220,19 @@ We use the estimated factor loadings and covariance to specify separate populati
 #population model group 1 
 
 model.pop.R<-paste0('f1 =~  x1 + ',
-                  A6.coeftab[1,2],'* x2 + ',
-                 A6.coeftab[2,2],'* x3  
+                    A6.coeftab[1,2],'* x2 + ',
+                    A6.coeftab[2,2],'* x3  
                   f2 =~  x4 + ',
-                 A6.coeftab[3,2],'* x5 + ',
-                 A6.coeftab[4,2],'* x6  
+                  A6.coeftab[3,2],'* x5 + ',
+                  A6.coeftab[4,2],'* x6  
                   f1~~', A6.coeftab[13,2],'*f2')
 #population model group 2 
 model.pop.L<-paste0('f1 =~  x1 + ',
-                  A6.coeftab[1,3],'* x2 + ',
-                 A6.coeftab[2,3],'* x3  
+                    A6.coeftab[1,3],'* x2 + ',
+                    A6.coeftab[2,3],'* x3  
                   f2 =~  x4 + ',
-                 A6.coeftab[3,3],'* x5 + ',
-                 A6.coeftab[4,3],'* x6  
+                  A6.coeftab[3,3],'* x5 + ',
+                  A6.coeftab[4,3],'* x6  
                   f1~~', A6.coeftab[13,3],'*f2')
 
 ```
@@ -270,14 +268,14 @@ We can now perform power-analysis based on the population covariances and the co
 # perform a priori power analysis
 # Note that lavaan handles multiple group models by having covariance matrices specified as lists containing the associated matrices for each group.  
 ap_LH_RH <- semPower.aPriori(SigmaHat = list(cov.hcommon.R, cov.hcommon.L), 
-                        Sigma = list(cov.pop.R, cov.pop.L), 
-                        alpha = .05, power=.9, N=list(2,3),df = df)
+                             Sigma = list(cov.pop.R, cov.pop.L), 
+                             alpha = .05, power=.9, N=list(2,3),df = df)
 
 summary(ap_LH_RH)
 
 ph_LH_RH <- semPower.postHoc(SigmaHat = list(cov.hcommon.R, cov.hcommon.L), 
-                        Sigma = list(cov.pop.R, cov.pop.L), 
-                        alpha = .05, N=list(100,100),df = df)
+                             Sigma = list(cov.pop.R, cov.pop.L), 
+                             alpha = .05, N=list(100,100),df = df)
 summary(ph_LH_RH)
 
 ```
@@ -316,7 +314,8 @@ Prediction 5 concerns categorical analysis. A simple approach is to binarise lat
 
 We can first examine sensitivity of this approach with the original sample of Woodhead et al (2020). 
 
-```{r chisq.cats}
+```{r chisq.cats, include=F, echo=F, warning=F}
+#initialise catx variables: 1 for +ve and - for negative
 my_A2$catx1<-1
 my_A2$catx2<-1
 my_A2$catx3<-1
@@ -326,8 +325,8 @@ my_A2$catx6<-1
 
 chitab<-data.frame(matrix(NA,ncol=11,nrow=6))
 for (mycol in 1: 6){
-  w<-which(my_A2[,(mycol+1)]<0)
-  my_A2[w,(mycol+7)]<-0
+  w<-which(my_A2[,(mycol+1)]<0) #find values below zero
+  my_A2[w,(mycol+7)]<-0 #recode catx value to zero
   t<-table(my_A2[,(mycol+7)],my_A2$hand)
   tp<-round(prop.table(t,2),2) #proportions by handedness
   chitab[mycol,1]<-colnames(my_A2)[(mycol+1)]
@@ -349,12 +348,12 @@ To allow for attrition of participants, we plan to recruit twice as many partici
 For prediction 2 we focus on predicting patterns of covariance between the three online tasks, as we do not have sufficient indicators for modeling with latent variables. We prespecify four possible covariance structures, which are then compared using AIC weights. This is a subset of SEM that does not include any latent variables or directional paths. It allows us to constrain particular covariance patterns and report the 'best' model according AIC weights. 
 
 The four models include:  
-Model A, where each measure is independent of the others. 
-Model B, where all measures are intercorrelated to a similar degree
-Model C, where the two receptive language measures (dichotic listening and optimal viewing task) are intercorrelated, but independent of rhyme detection
-Model D, where the two tasks involving visual presentation and written language (optimal viewing and rhyme detection) are intercorrelated, and independent of the auditory task, dichotic listening.
+Model A, where all LIs are intercorrelated to a similar degree
+Model B1,  where LIs for the two receptive language measures (dichotic listening and optimal viewing task) are intercorrelated, but independent of rhyme detection
+Model B2, where LIs for the two tasks involving visual presentation and written language (optimal viewing and rhyme detection) are intercorrelated, and independent of the auditory task, dichotic listening.
+Model C, where all LIs are independent of one another.
 
-On a priori grounds, we favour model C, which is compatible with our overall 2-factor model of language lateralisation. In order to compare models, we need to simulate data corresponding to each model type, and then evaluate how frequently the correct model is identified with our planned sample size of 400 participants.
+Models B1 and B2 are mathematically equivalent, differing only in the specific variables that are correlated. On a priori grounds, we favour model B1, which is compatible with our overall 2-factor model of language lateralisation. In order to compare models, we need to simulate data corresponding to each model type, and then evaluate how frequently the correct model is identified with our planned sample size of 400 participants.
 
 ```{r sim_dat}
 #========================================================================#
@@ -362,127 +361,138 @@ On a priori grounds, we favour model C, which is compatible with our overall 2-f
 #========================================================================#
 #Although we have 4 models, 2 (C and D) are computationally equivalent.
 #In terms of power they will be the same, even though we are making predictions about different sets of tests.
-sim_data<-function(n=400)
+sim_data<-function(n=400,r=.5)
   #we assume tasks are ovp,dichotic, and rhyme
 {
-
+  
   #========================================================================#
-  sigA <- matrix(c(1,	.5,	.5,
-                   .5, 1, .5,
-                   .5, .5, 1),3,3,byrow=TRUE)
+  sigA <- matrix(c(1,	r,r,
+                   r, 1, r,
+                   r, r, 1),3,3,byrow=TRUE)
   data_A <- mvrnorm(n=n, mu = c(0,0,0), Sigma=sigA) #all correlated
   #========================================================================#
-  sigB <- matrix(c(1,	.5,	0,
-                   .5, 1, 0,
+  sigB <- matrix(c(1,	r,	0,
+                   r, 1, 0,
                    0, 0, 1),3,3,byrow=TRUE)
   data_B <- mvrnorm(n=n, mu = c(0,0,0), Sigma=sigB)
   #ovp and dichotic correlated, rhyme independent
   #========================================================================#
-    sigC <- matrix(c(1,	0,	0,
+  sigC <- matrix(c(1,	0,	0,
                    0, 1, 0,
                    0, 0, 1),3,3,byrow=TRUE)
   data_C <- mvrnorm(n=n, mu = c(0,0,0), Sigma=sigC) #all independent
   #========================================================================#
-
+  
   
   data_A<-as.data.frame(data_A)
   data_B<-as.data.frame(data_B)
   data_C<-as.data.frame(data_C)
-
-  names(data_A)<-names(data_B)<-names(data_C)<-c("ovp","dichotic","rhyme")
+  
+  names(data_A)<-names(data_B)<-names(data_C)<-c("rhyme","dichotic","ovp")
   
   return(list(data_A=data_A,data_B=data_B,data_C=data_C))
 }
 #========================================================================#
 ```
 
+```{r aicmodels}
+#Specify models
 
-
-```{r makedata, warning = F}
-mydat<-sim_data()  #simulates sets of data for all 3 models
-
-niter<-10
-sem_pwr_cov<-function(n=400,Niters=niter)
-{
-  LLR_testB <- vector(mode="numeric", length=niter)
-  LLR_testC <- vector(mode="numeric", length=niter)
-
-  for(i in 1:Niters)
-  {
-    sims <- sim_data(n=n)
-     #Model A all correlated
+  #Model A all correlated
     modelA<-"
-    rhyme~~ovp
     rhyme~~dichotic
+    rhyme~~ovp
     dichotic~~ovp
     "
-       #Model B 2 correlated
+    #Model B 2 correlated
     modelB<-"
-   rhyme~~ovp
-    rhyme~~0*dichotic
+    rhyme~~dichotic
+    rhyme~~0*ovp
     dichotic~~0*ovp"
-
+    
     #model C all independent
     modelC<-"
     rhyme~~0*dichotic
     rhyme~~0*ovp
-    ovp~~0*dichotic"
+    dichotic~~0*ovp"
 
+    modelBB<-"
+    rhyme~~0*dichotic
+    rhyme~~ovp
+    dichotic~~0*ovp"
     
-  #Using data simulated from null model A, test all 4 models
-    fit1A <- cfa(modelA, data=sims$data_A)
+```    
+
+```{r makedata, warning = F}
+myN <- 400 #sample size
+myr <- .5 #correlation for intercorrelated variables
+mydat<-sim_data(myN,myr)  #simulates sets of data for all 3 models
+
+
+niter<-1000
+AICdf <- data.frame(matrix(NA,nrow=niter,ncol=14))
+colnames(AICdf)<-c('modelA.dataA','modelB.dataA','modelC.dataA',
+                   'modelA.dataB','modelB.dataB','modelC.dataB',
+                   'modelA.dataC','modelB.dataC','modelC.dataC',
+                   'bestfit.dataA','bestfit.dataB','bestfit.dataC',
+                   'dataB.sigBvsC','modelBB.dataB')
+  
+  for(i in 1:niter)
+  {
+    sims <- sim_data(n=myN)
+     #Using data simulated from model A (all correlated), test all models
+    fit1A <- cfa(modelA, data=sims$data_A) #model has zero DF!
     fit2A <- cfa(modelB, data=sims$data_A)
     fit3A <- cfa(modelC, data=sims$data_A)
-
-    aic_vector1 <- c(fitMeasures(fit1A, "aic"),fitMeasures(fit2A, "aic"),fitMeasures(fit3A, "aic"))
-     #Using data simulated from correlated model, test all 4 models
-    fit1B <- cfa(modelA, data=sims$data_B)
+    
+   aic_vector1<- c(fitMeasures(fit1A, "aic"),fitMeasures(fit2A, "aic"),fitMeasures(fit3A, "aic"))
+    
+    #Using data simulated from 2-correlated model, test all models
+   #We also test model BB, where 2 are correlated, but the wrong 2
+    fit1B <- cfa(modelA, data=sims$data_B)#model has zero DF!
     fit2B <- cfa(modelB, data=sims$data_B)
     fit3B <- cfa(modelC, data=sims$data_B)
-
+    fit4BB <- cfa(modelBB,data=sims$data_B) 
+    
     aic_vector2 <- c(fitMeasures(fit1B, "aic"),fitMeasures(fit2B, "aic"),fitMeasures(fit3B, "aic"))
-       #Using data simulated from  model C, test all 3 models
-    fit1C <- cfa(modelA, data=sims$data_C)
+    
+    #Using data simulated from  model C (all uncorrelated), test all  models
+    fit1C <- cfa(modelA, data=sims$data_C)#model has zero DF!
     fit2C <- cfa(modelB, data=sims$data_C)
     fit3C <- cfa(modelC, data=sims$data_C)
-
+    
     aic_vector3 <- c(fitMeasures(fit1C, "aic"),fitMeasures(fit2C, "aic"),fitMeasures(fit3C, "aic"))
     
-     #Anticipate that for each model, lowest AIC obtained when the simulated data do match the model
-    # 
-    # The AIC weights make massive difference for preferred model!
-    AICweights1<-akaike.weights(aic_vector1)$weights
-   AICweights2<-akaike.weights(aic_vector2)$weights
-    AICweights3<-akaike.weights(aic_vector3)$weights
-
-    # 
-     IC_objectweights1<-data.frame(Model=factor(rep(c('Model 1','Model 2','Model 3'))), IC = factor(rep('AIC',each=3)),values=AICweights1)
-     IC_objectweights2<-data.frame(Model=factor(rep(c('Model 1','Model 2','Model 3'))), IC = factor(rep('AIC',each=3)),values=AICweights2)
-     IC_objectweights3<-data.frame(Model=factor(rep(c('Model 1','Model 2','Model 3'))), IC = factor(rep('AIC',each=3)),values=AICweights3)
-     
-     #Testing model B (favoured model) against all 3 datasets
-     anova(fit1B,fit2B,fit3B)
-
-     #NB chi squares here are ordered by DF, order is 2, 3, 4, 1
-    LLR_testB[i] <- anova(fit1B,fit2B,fit3B)$`Pr(>Chisq)`[2]
+    aic_vector4 <-c(fitMeasures(fit4BB,'aic'),fitMeasures(fit2B, "aic"))
     
-     #Testing model C (independent) against all 3 datasets
-    anova(fit1C,fit2C,fit3C)
-
-    LLR_testC[i] <- anova(fit1C,fit2C,fit3C)$`Pr(>Chisq)`[3]
-  }
-  LLR_testB_ind<-ifelse(LLR_testB >=0.05,0,1)
-  LLR_testC_ind<-ifelse(LLR_testC >=0.05,0,1)
-  
-  hyp1_pwr = mean(LLR_testB_ind)
-  hyp2_pwr = mean(LLR_testC_ind)
-  return(list(hypothesis1_pwr=hyp1_pwr,hypothesis2_pwr=hyp2_pwr,LLR_testB=LLR_testB,LLR_testC=LLR_testC))
+    #Anticipate that for each model, lowest AIC obtained when the simulated data do match the model
+    # 
+    # The AIC weights make massive difference for preferred model
+    AICdf[i,1:3]<-akaike.weights(aic_vector1)$weights
+     AICdf[i,4:6]<-akaike.weights(aic_vector2)$weights
+    AICdf[i,7:9]<-akaike.weights(aic_vector3)$weights
+    AICdf$bestfit.dataA[i] <- which(AICdf[i,1:3]==max(AICdf[i,1:3]))
+    AICdf$bestfit.dataB[i] <- which(AICdf[i,4:6]==max(AICdf[i,4:6]))
+    AICdf$bestfit.dataC[i] <- which(AICdf[i,7:9]==max(AICdf[i,7:9]))
+    
+#If true model is model B, can it be distinguished from model C (all independent)
+    AICdf$dataB.sigBvsC[i] <- anova(fit2B,fit3B)$`Pr(>Chisq)`[2]
+    
+   BvsBB<-akaike.weights(aic_vector4)$weights[1] #comparison of true vs wrong assignment to correlations for model B; if this is < .5, then true model is better.
+     AICdf[i,14]<-ifelse(BvsBB<.5,1,0)
 }
 
-mybit<-sem_pwr_cov(n=400,Niters=niter)
+myt1<-table(AICdf$bestfit.dataA)
+myt2<-table(AICdf$bestfit.dataB)
+myt3<-table(AICdf$bestfit.dataC)
+myt4<-table(AICdf$modelBB.dataB)
+powerBC <-length(which(AICdf$dataB.sigBvsC<.05))/niter
+rr<-round(myr*100,0)
+AICname<-paste0('AICdf_r',rr,'niter',niter,'.csv')
+write.csv(AICdf,AICname,row.names=F)
 ```
 
-
+On 1000 runs, data for 400 participants were simulated to correspond to model B1, with a correlation of .5 between rhyme judgement and OVP, and zero correlation of these LIs with dichotic listening. On `r (100*myt2[2]/niter)`% of runs, model B1 had the highest value of Akaike weights, with model A (all tests correlated) on  the other `r (100*myt2[1]/niter)`% of runs. On `r 100*powerBC` % of runs, the correct model was significantly superior to model C (zero correlation between LIs), as evidenced by a significant chi square value on likelihood ratio test between models. Model B1 always had higher Akaike weights than model B2, when the data were generated from model B1. On the other hand, if data were generated from model C, ie. a true null model, with zero correlation between the three LIs, then model B1 gave highest Akaike weights on `r (100*myt3[2]/niter)`% of runs, and model A (all correlated) gave highest Akaike weights on `r (100*myt3[1]/niter)`%  of runs. <!---warning: there might be circumstances where this lookup of power values could be out . It depends on myt3 having values for all 3 models--->
 
 
 
