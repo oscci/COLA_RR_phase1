@@ -1,0 +1,115 @@
+---
+title: "Multilevel model power from Paul"
+output: html_notebook
+---
+
+# Sample size for the COLA RR multilevel model.
+#======================================================================================#
+
+21-08-2020
+
+ Two tests of power: 
+  
+  1) are we powered to find the interaction task*hand?
+  2) are we powered to test whether handedness groups are homogenous or heterogeneous?
+
+```{r packages}
+library(tidyverse)
+library(MASS)
+library(MBESS)
+library(nlme)
+```
+#======================================================================================#
+
+#             dichotic      OVP     rhyme
+# dichotic       1          .5         .2
+# OVP           .5           1         .2
+# rhyme         .2          .2          1
+
+
+#             dichotic      OVP     rhyme
+# dichotic       1          .5         0
+# OVP           .5           1         0
+# rhyme          0           0         1
+
+#======================================================================================#
+```{r setup}
+
+N1 <- 200 #sample size for Right handers
+N2 <- 200 #sample size for Left handers
+
+Rcor<-matrix(c(1,.5,.2,.5,1,.2,.2,.2,1),ncol=3,nrow=3,byrow = TRUE)
+
+Lcor<-matrix(c(1,.5,0,.5,1,0,0,0,1),ncol=3,nrow=3,byrow = TRUE)
+
+# Based on dichotic listening task in Adam's Paper
+# d = (u1 - u2)/sd
+# rearrange and sub in d=0.3, sd=6.2 and u1=-0.2
+# u1 = (0.3*6.2) + (-0.2) = 1.66
+# u2 = -0.2
+# sd = 6.2
+
+
+# Need means and variances here! 
+# [dichotic, OVP, rhyme]
+meansR <- c(1.5,1.5,2)
+meansL <- c(0,0,1)
+varsR <- c(1,1,1) 
+varsL <- c(1.5,1.5,1.5)
+  
+#======================================================================================#
+
+#convert the correlation matrices to covariance matrices, so that variances are correct for data sim.
+
+    # [dichotic, OVP, rhyme]
+SigmaR<-cor2cov(Rcor,varsR)
+SigmaL<-cor2cov(Lcor,varsL)
+
+niter <- 100
+pvals<-data.frame(LRT=rep(NA,niter),interaction=rep(NA,niter))
+for(i in 1:niter)
+{
+allN<-N1+N2
+rdata<-data.frame(mvrnorm(N1,mu=meansR,Sigma=SigmaR))
+ldata<-data.frame(mvrnorm(N2,mu=meansL,Sigma=SigmaL))
+rdata$hand<-0
+ldata$hand<-1
+simdata_wide <- data.frame(rbind(rdata,ldata))
+simdata_wide$id<-1:allN
+
+simdata<-rbind(simdata_wide[,c(1,4,5)],simdata_wide[,c(1,4,5)],simdata_wide[c(1,4,5)]) #3 copies so names are compatible
+simdata$task<-c(rep(1,allN),rep(2,allN),rep(3,allN))
+colnames(simdata)[1]<-'LI'
+simdata$LI[(allN+1):(2*allN)]<-simdata_wide$X2
+simdata$LI[(2*allN+1):(3*allN)]<-simdata_wide$X3
+simdata$hand<-as.factor(simdata$hand)
+simdata$task<-as.factor(simdata$task)
+# Homogeneous (base model)
+mod0<-lme(fixed=LI~hand*task, 
+          random=list(id=pdSymm(form=~1)),
+          data=simdata, 
+          method="REML",contrasts=c(hand='contr.sum',task='contr.helmert'))
+
+#----------------------------------------------------------------------------------#
+
+# Heterogeneous (alternative model)
+
+mod1<-lme(fixed=LI ~ hand*task, 
+          random=list(id=pdDiag(form= ~ 0 + hand)),
+          data=simdata,
+          method="REML",contrasts=c(hand='contr.sum',task='contr.helmert'))
+
+sum.mod1<-summary(mod1)
+
+#Likelihood ratio test
+
+LRtest <- anova(mod0,mod1)
+
+#Extract pvalues for niter iterations
+pvals[i,2] <- sum.mod1$tTable[4,5]#interaction
+pvals[i,1] <- LRtest$`p-value`[2]#likelihood ratio for testing whether heterogeneous variance in handedness or not.
+}  
+ 
+power1<-mean(pvals[,1] < 0.05,na.rm=T)
+power2<-mean(pvals[,2] < 0.05,na.rm=T)
+```
