@@ -1,0 +1,151 @@
+---
+title: "COLA RR analysis plan"
+output: html_notebook
+---
+
+Analysis script illustrated with simulated data.  
+For each part of analysis, we first show the text from the RR, and then illustrate the analysis with a simulated dataset.
+
+```{r Rpackage_setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(MASS)
+library(MBESS)
+library(nlme)
+library(corrr)
+library(semPower)
+library(bookdown)
+library(lavaan)
+library(semPlot)
+# library(knitr)
+# library(kableExtra)
+library(flextable)
+library(officer)
+library(corrr) #added by DB for easy correlations
+options(scipen=999)
+```
+
+## 1. On the online battery, dichotic and visual-half-field tasks will show significant left-brain lateralisation at the group level, with this effect being stronger in right- than left-handers.  
+
+To examine lateralisation at the brain level for each task will conduct the following analyses. Following Parker et al. (2020), we will conduct Shapiro-Wilk tests to check whether the distributions are normal for each measure. If distributions are normal, we will conduct a one-sample t-test to assess whether LIs at the group level are different from zero; otherwise a a Wilcoxon one-sample v test will be used.
+
+The main analysis of the behavioural laterality indices will follow the approach used by Bruckert et al (2020), using Multilevel Linear Modelling (MLM) to assess the influence of task and handedness on lateralisation strength (LI). This method allows us to test whether the heterogeneity of variance is comparable in left- and right-handers, as well as quantifying main effects of task and handedness. MLM will be conducted within R (R Core Team, 2019) using the nlme package (version 3.1-148; Pinheiro et al., 2020). As per Bruckert et al. two models will be fitted to the data. Model 1 will assume homogeneous variance model assumptions (i.e. variances between subjects and groups are equal for the two handedness groups). Model 2 will assume heterogeneous between-subject variance by group (i.e. different variances for the left and right handed group). Model fit will be assessed using a likelihood ratio test comparing Model 1 and Model 2. Coefficients for the fixed and random effects will be reported for the best fitting model. Both models will include fixed effects of handedness, task and their interaction: nlme::lme(fixed = LI ~ handedness*task, random = list(id = pdDiag(form= ~ 0 + handedness))).  
+
+We will adopt the following contrasts. For handedness, the contr.sum function from the base stats package will be used to implement summed-to-zero contrasts. This will correspond to a main effect of handedness. Helmert contrasts will be used for the task variable which compares each categorical level to the mean of the subsequent levels.
+
+## Simulated data
+Two datasets will be simulated for 200 Lhanders and 200 Rhanders on three online laterality tasks. The simulated data are LIs - i.e. these are already computed at this stage.
+Dataset N is entirely null. There is no lateral bias, all variables are just random normal deviates, and there is no group difference.
+For dataset P, we add biases in line with our predictions, i.e. strong lateral bias for dichotic and rhyme tasks, weaker bias for the OVP task. Furthermore, mean bias is less for left- than right-handers, and correlations between measures are weakers.
+
+```{r simdata}
+set.seed(2)
+mytasks<-c('OVP','Dichotic','Rhyme')
+mymeans <- c(0,0,0)
+mySigma <- matrix(c(1,0,0,0,1,0,0,0,1),nrow=3)
+myN <- 400
+
+mydat <- mvrnorm(myN,mymeans,mySigma)
+Lhand <- c(rep(0,200),rep(1,200))
+mydatN <-data.frame(cbind(Lhand,mydat))
+colnames(mydatN)[2:4]<-mytasks
+
+head(mydatN)
+correlate(mydatN) #check correlations
+
+#for datasetP, we specify a new correlation matrix which is different for L and R handers
+#we also specify separate means for the two groups.
+mydatP <- mydatN #start by just reusing the null dataframe.
+
+mymeansR <- c(.25,.5,.5) #positive is left-lateralised; more extreme for Dichotic and Rhyme
+mymeansL <- (mymeansR - .25) #L handers are unbiased on OVP, and have mean lat of .25 on Dichotic and rhyme
+
+mySigmaR <- matrix(c(1,.3,.3,.3,1,.6,.3,.6,1),nrow=3)
+#modest correlation between dichotic and rhyme; significant but lower for OVP
+mySigmaL <- matrix(c(1,.1,.1,.1,1,.3,.1,.3,1),nrow=3) #same corr between dichotic/rhyme for L handers, but lower with OVP
+myN <- 200
+
+mydatR <- mvrnorm(myN,mymeansR,mySigmaR)
+mydatL <- mvrnorm(myN,mymeansL,mySigmaL)
+mydatP[1:200,2:4]<-mydatR
+mydatP[201:400,2:4]<-mydatL
+correlate(mydatR)
+correlate(mydatL)
+correlate(mydatP) #both together
+```
+## Test for normality
+
+```{r shapirowilk}
+
+for (d in 1:2){ #each dataset
+  thisdat<-mydatN
+  mylabel<-'Null data'
+  if(d==2){thisdat<-mydatP
+  mylabel<-'Predicted data'}
+  for (t in 2:4){ #each test
+    s<-shapiro.test(thisdat[,t])$p.value
+    print(paste0(mylabel,':',colnames(thisdat)[t],' Normality test, p-value: ',round(s,3)))
+    }
+}
+
+```
+
+As expected, these are all nonsignificant, since we modelled as normal variables.  
+
+## Test if population mean is different from zero  
+
+```{r onesamplet}
+
+for (d in 1:2){ #each dataset
+  thisdat<-mydatN
+  mylabel<-'Null data'
+  if(d==2){thisdat<-mydatP
+  mylabel<-'Predicted data'}
+  for (t in 2:4){ #each test
+    x<-t.test(thisdat[,t])
+    print(paste0(mylabel,':',colnames(thisdat)[t],': mean = ',round(x$estimate,3),', t=', round(x$statistic,3),', p-value = ',round(x$p.value,4)))
+    }
+}
+
+```
+
+## Multilevel linear model
+
+```{r MLL}
+for (d in 2:2){ #do first for null dataset and then for predicted dataset
+  #HERE I HAVE KEPT d = 2 SO I CAN JUST LOOK AT RESULTS FOR mydatP
+    thisdat<-mydatN
+  mylabel<-'Null data'
+  if(d==2){thisdat<-mydatP
+  mylabel<-'Predicted data'}
+  thisdat$id<-as.factor(1:400)
+#First convert files to long form
+longdat <- thisdat %>% gather("task", "LI", -c(id,Lhand))
+
+longdat$task<-as.factor(longdat$task)
+longdat$hand<-as.factor(longdat$Lhand)
+
+# Homogeneous (base model)
+mod0<-lme(fixed=LI~hand*task, 
+          random=list(id=pdSymm(form=~1)),
+          data=longdat, 
+          method="REML",contrasts=c(hand='contr.sum',task='contr.helmert'))
+print(mylabel) 
+print(summary(mod0))
+
+# Heterogeneous (alternative model)
+
+mod1<-lme(fixed=LI ~ hand*task, 
+          random=list(id=pdDiag(form= ~ 0 + hand)),
+          data=longdat,
+          method="REML",contrasts=c(hand='contr.sum',task='contr.helmert'))
+
+sum.mod1<-summary(mod1)
+print(summary(mod1))
+
+#Likelihood ratio test
+
+LRtest <- anova(mod0,mod1)
+print(LRtest)
+}
+```
