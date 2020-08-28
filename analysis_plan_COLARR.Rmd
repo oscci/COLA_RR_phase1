@@ -2,6 +2,7 @@
 title: "COLA RR analysis plan"
 output: html_notebook
 ---
+Started 28th August 2020  , DVM Bishop  
 
 Analysis script illustrated with simulated data.  
 For each part of analysis, we first show the text from the RR, and then illustrate the analysis with a simulated dataset.
@@ -15,6 +16,7 @@ library(MASS)
 library(MBESS)
 library(nlme)
 library(semPower)
+library(semTools)
 library(bookdown)
 library(lavaan)
 library(semPlot)
@@ -31,116 +33,68 @@ options(scipen=999)
 
 
 ## Simulated data
-To test our analysis, we create a simulated dataset, which is roughly based on what we know about distributions of the LIs based on prior research.
+To test our analysis, we create a simulated dataset, which is roughly based on what we know about distributions of the LIs based on prior research.  
 
-Two datasets will be simulated for 200 Lhanders and 200 Rhanders on three online laterality tasks. The simulated data are LIs - i.e. these are already computed at this stage.
-Dataset N is entirely null. There is no lateral bias, all variables are just random normal deviates, and there is no group difference.
-For dataset P, we add biases in line with our predictions, i.e. strong lateral bias for dichotic and rhyme tasks, weaker bias for the OVP task. Furthermore, for left-handers, a higher proportion are right-lateralised, leading to a lower mean and higher variance, and correlations between measures are weaker.
+A dataset is simulated for 200 Lhanders and 200 Rhanders on three online laterality tasks and six fTCD tasks. The simulated data are LIs - i.e. these are already computed at this stage.  
 
 ```{r simdata}
 set.seed(3)
-mytasks<-c('ovp','dichotic','rhyme')
-#Null data have no bias and all estimates are just random numbers
-mymeans <- c(0,0,0)
-mySigma <- matrix(c(1,0,0,0,1,0,0,0,1),nrow=3)
+#3 online tasks referred to by name: P1-P3 are production fTCD tasks, R1:R3 are receptive.
+mytasks<-c('rhyme','dichotic','ovp','P1','P2','P3','R1','R2','R3')
+#We start assuming rhyme will pattern with P tasks, and dichotic and ovp with R tasks
+
+mymeans <- c(.6,.5,.4,1.5,1.5,1.2,.5,.5,.3) #starting values for mean LIs (some cases will be flipped so actual means will be less than this) - some random task effects incorporated
 myN <- 400
+
+mySigma <- matrix(c(10,3,3,6,6,6,3,3,3,
+                    3,10,6,3,3,3,6,6,6,
+                    3,3,10,3,3.,3,6,6,6,
+                    6,3,3,10,6,6,3,3,3,
+                    6,3,3,6, 10,6,3,3,3,
+                    6,3,3,6,6,10,3,3,3,
+                    3,6,6,3,3,3,10,6,6,
+                    3,6,6,3,3,3,6,10,6,
+                    3,6,6,3,3,3,6,6,10),nrow=9)
+
+
+
+mySigma<-mySigma/10  #much easier to debug without decimals!
 
 mydat <- mvrnorm(myN,mymeans,mySigma)
 Lhand <- c(rep(0,200),rep(1,200))
-mydatN <-data.frame(cbind(Lhand,mydat))
-colnames(mydatN)[2:4]<-mytasks
-
-head(mydatN)
-correlate(mydatN) #check correlations, should be null
-
-#for datasetP, we specify a new correlation matrix which is different for L and R handers
-#we also specify separate means for the two groups.
-mydatS <- mydatN #start by just reusing the null dataframe.
-
-mymeansR <- c(.25,.5,.5) #positive is left-lateralised; more extreme for Dichotic and Rhyme
-mymeansL <- (mymeansR - .25) #L handers are unbiased on OVP, and have mean lat of .25 on Dichotic and rhyme
-
-mySigmaR <- matrix(c(1,.3,.3,.3,1,.6,.3,.6,1),nrow=3)
-#modest correlation between dichotic and rhyme; significant but lower for OVP
-mySigmaL <- matrix(c(1,.1,.1,.1,1,.3,.1,.3,1),nrow=3) #same corr between dichotic/rhyme for L handers, but lower with OVP
-myN <- 200
-
-mydatR <- mvrnorm(myN,mymeansR,mySigmaR)
-mydatL <- mvrnorm(myN,mymeansL,mySigmaL)
-mydatS[1:200,2:4]<-mydatR
-mydatS[201:400,2:4]<-mydatL
-correlate(mydatR)
-correlate(mydatL)
-correlate(mydatS) #both together
-
-```
-## Mixture model version
-There is some evidence that to model the difference between left- and right-handers, we don't just need a lower mean for L handers: rather we should model as a mixture of left- and right-brain-biased cases, with a higher proportion of the latter among left-handers.
-Easiest way to model this is to model with everyone left-brain-biased, but then just flip the sign for a proportion of individuals, which is higher for left-handers.
-We'll call this mydatM.  
-
-```{r simdataM}
-mydatM <- mydatN #start by just reusing the null dataframe.
-
-mymeans <- c(.5,.75,.75) #positive is left-lateralised; more extreme for Dichotic and Rhyme
-#Because some will be flipped, need more extreme values here to be realistic
-
-mySigma <- matrix(c(1,.3,.3,.3,1,.6,.3,.6,1),nrow=3)
-#modest correlation between dichotic and rhyme; significant but lower for OVP
-myN = 400
-mydat <- mvrnorm(myN,mymeans,mySigma)
-correlate(mydat)
+mydatF <-data.frame(cbind(Lhand,mydat))
+colnames(mydatF)[2:10]<-mytasks
 
 #now flip polarity for proportion of individuals.
-mydatM[2:4]<-mydat
 
+#Define proportion who flip - NB this is not same as % R-lateralised because initial values include negatives, so some will flip from R to L!
+
+#Do separate flip for production and reception variables, to induce dissociation in some
 pL <- .35  #proportion of L handers who flip
-pR <- .05 #proportion of R handers who flip
-
-for (j in 2:4){ #do this separately for each task
-for (i in 1:myN){
-  myp <- pR
-  if(i>199){myp <- pL}
-  if(runif(1)<myp) {mydatM[i,j]<-(-mydatM[i,j])}
-}
-}
-
-correlate(mydatM)
-
-```
-
-Alternate approach - whether flipped or not depends on the individual; i.e. retain correlation in the flipped cases.  This is mydatF.  
-```{r simdataF}
-mydatF <- mydatN #start by just reusing the null dataframe.
-
-mymeans <- c(.5,.75,.75) #positive is left-lateralised; more extreme for Dichotic and Rhyme
-#Because some will be flipped, need more extreme values here to be realistic
-
-mySigma <- matrix(c(1,.3,.3,.3,1,.6,.3,.6,1),nrow=3)
-#modest correlation between dichotic and rhyme; significant but lower for OVP
-myN = 400
-mydat <- mvrnorm(myN,mymeans,mySigma)
-correlate(mydat)
-
-#now flip polarity for proportion of individuals.
-mydatF[2:4]<-mydat
-
-pL <- .35  #proportion of L handers who flip
-pR <- .05 #proportion of R handers who flip
-
+pR <- .1 #proportion of R handers who flip
+pvars <- c(1,4,5,6)+1  #column numbers for production tasks
+rvars <- c(2,3,7,8,9)+1 #column numbers for receptive tasks
 
 for (i in 1:myN){
-  myp <- pR
-  if(i>199){myp <- pL}
-  if(runif(1)<myp) {mydatF[i,2:4]<-(-mydatF[i,2:4])}
+  myp <- pR #proportion who will flip
+  if(i>199){myp <- pL} #use Lhander proportion for rows 200+
+  if(runif(1)<myp) {mydatF[i,pvars]<-(-mydatF[i,pvars])} #check p against one random uniform for production
+   if(runif(1)<myp) {mydatF[i,rvars]<-(-mydatF[i,rvars])}#check p against another random uniform for receptive
   }
+print('Correlation check: whole sample')
+correlate(mydatF[,2:10])
+print('L handers only')
+correlate(mydatF[200:400,2:10])
+print('R handers only')
+correlate(mydatF[1:200,2:10])
 
-correlate(mydatF)
+mydatF$id<-as.factor(1:400)
+mydatF$Lhand<-as.factor(mydatF$Lhand)
 
 ```
 ## Step 0. 
 __Basic descriptives__  
-Distributions of data will be visualised in scatterplots, showing pairwise associations between the three LI measures, with handedness colour-coded. As well as providing a table with means and SDs of all variables, we will compute split-half reliability for the online battery measures by correlating LIs obtained with alternate blocks of items for each task. Spearman correlations will be used to avoid inflated reliability from unduly influential datapoints. As noted in the text, reliability of each measure will constrain how strongly it correlates with the other measures.
+Distributions of data will be visualised in scatterplots, showing pairwise associations between the three LI measures, with handedness colour-coded. As well as providing a table with means and SDs of all variables, we will compute split-half reliability for the online battery measures by correlating LIs obtained with alternate blocks of items for each task, and for the Doppler measures from alternate trials. Spearman correlations will be used to avoid inflated reliability from unduly influential datapoints.
 
 
 ## Step 1. 
@@ -148,51 +102,34 @@ __Prediction: On the online battery, dichotic and visual-half-field tasks will s
 
 To examine lateralisation at the brain level for each task will conduct the following analyses. Following Parker et al. (2020), we will conduct Shapiro-Wilk tests to check whether the distributions are normal for each measure. If distributions are normal, we will conduct a one-sample t-test to assess whether LIs at the group level are different from zero; otherwise a a Wilcoxon one-sample v test will be used.
 
-The main analysis of the behavioural laterality indices will follow the approach used by Bruckert et al (2020), using Multilevel Linear Modelling (MLM) to assess the influence of task and handedness on lateralisation strength (LI). This method allows us to test whether the heterogeneity of variance is comparable in left- and right-handers, as well as quantifying main effects of task and handedness. MLM will be conducted within R (R Core Team, 2019) using the nlme package (version 3.1-148; Pinheiro et al., 2020). As per Bruckert et al. two models will be fitted to the data. Model 1 will assume homogeneous variance model assumptions (i.e. variances between subjects and groups are equal for the two handedness groups). Model 2 will assume heterogeneous between-subject variance by group (i.e. different variances for the left and right handed group). Model fit will be assessed using a likelihood ratio test comparing Model 1 and Model 2. Coefficients for the fixed and random effects will be reported for the best fitting model. Both models will include fixed effects of handedness, task and their interaction: nlme::lme(fixed = LI ~ handedness*task, random = list(id = pdDiag(form= ~ 0 + handedness))).  
-
-We will adopt the following contrasts. For handedness, the contr.sum function from the base stats package will be used to implement summed-to-zero contrasts. This will correspond to a main effect of handedness. Helmert contrasts will be used for the task variable which compares each categorical level to the mean of the subsequent levels.
 
 ## Test for normality
 
 ```{r shapirowilk}
 
-for (d in 1:4){ #each dataset
-  thisdat<-mydatN
-  mylabel<-'Null data'
-   if(d==2){thisdat<-mydatS
-    mylabel<-'meanshift data'}
-    if(d==3){thisdat<-mydatM
-     mylabel<-'Mixed model data'}
-      if(d==4){thisdat<-mydatF
-     mylabel<-'Flipped% data'}
-  for (t in 2:4){ #each test
+
+  thisdat<-mydatF
+
+  for (t in 2:10){ #each test
     s<-shapiro.test(thisdat[,t])$p.value
-    print(paste0(mylabel,':',colnames(thisdat)[t],' Normality test, p-value: ',round(s,3)))
+    print(paste0(colnames(thisdat)[t],' Normality test, p-value: ',round(s,3)))
     }
-}
+
 
 ```
-
+Note that, with this method of simulation, whether or not non-normality detected will depend on the initial mean LI specified for the variable. Flipping data from a high mean will induce bimodality.
  
 
 ## Test whether population mean is different from zero  
 
 ```{r onesamplet}
 
-for (d in 1:4){ #each dataset
-  thisdat<-mydatN
-  mylabel<-'Null data'
-   if(d==2){thisdat<-mydatS
-    mylabel<-'meanshift data'}
-    if(d==3){thisdat<-mydatM
-     mylabel<-'Mixed model data'}
-      if(d==4){thisdat<-mydatF
-     mylabel<-'Flipped% data'}
-  for (t in 2:4){ #each test
+
+  for (t in 2:10){ #each test
     x<-t.test(thisdat[,t])
-    print(paste0(mylabel,':',colnames(thisdat)[t],': mean = ',round(x$estimate,3),', t=', round(x$statistic,3),', p-value = ',round(x$p.value,4)))
+    print(paste0(colnames(thisdat)[t],': mean = ',round(x$estimate,3),', t=', round(x$statistic,3),', p-value = ',round(x$p.value,4)))
     }
-}
+
 
 ```
 
@@ -204,9 +141,9 @@ densplotfunc<-function(myfile,mymain){
 
 p <- ggplot(myfile, aes(x=thiscol,color=Lhand)) + 
     geom_density(alpha=.4)+
-  ggtitle(mymain) # for the main title
+  ggtitle(mymain)+ # for the main title
 xlab('LI') # for the x axis label
-ylab('density') # for the y axis label
+
 
 # Add mean lines
 
@@ -219,18 +156,9 @@ return(p)
 ```{r doplots}
 #run function for each measure
 
-for (d in 1:4){ #each dataset
-  thisdat<-mydatN
-  mylabel<-'Null data'
-   if(d==2){thisdat<-mydatS
-    mylabel<-'meanshift data'}
-    if(d==3){thisdat<-mydatM
-     mylabel<-'Mixed model data'}
-      if(d==4){thisdat<-mydatF
-     mylabel<-'Flipped% data'}
+thisplot <-0
 
-thisdat$Lhand<-as.factor(thisdat$Lhand)
-for (col in 2:4){ #do for each variable
+for (col in 2:4){ #do for each online variable
   thisplot<-thisplot+1
   myfile2<-thisdat[,c(1,col)]
   mymain<-colnames(thisdat)[col]
@@ -239,7 +167,7 @@ for (col in 2:4){ #do for each variable
   t<-t.test(myfile2$thiscol~myfile2$Lhand)
   mymeans<-round(by(myfile2$thiscol,myfile2$Lhand,mean),3)
   mysds<-round(by(myfile2$thiscol,myfile2$Lhand,sd),3)
-  print(paste0('Model ',mylabel,' --- ',mymain,": t=",round(t$statistic,2),",p = ",round(t$p.value,3)))
+  print(paste0(mymain,": t=",round(t$statistic,2),",p = ",round(t$p.value,3)))
   print(paste0('Mean Rhander = ',mymeans[1],' SD = ',mysds[1], '.  Mean Lhander = ',mymeans[2],' SD = ',mysds[2]))
 #  ggarrange(myg1,myg2,myg3,myg4,myg5,myg6,myg7,myg8, ncol = 2, nrow = 4,common.legend=T,legend="bottom")
 # ggsave(
@@ -248,50 +176,36 @@ for (col in 2:4){ #do for each variable
 #   dpi = 300
   plotname<-paste0('scatter',thisplot,'.png')
   ggsave(plotname)
+  print(p)
 }
-}
+
 ```
 
+The main analysis of the behavioural laterality indices will follow the approach used by Bruckert et al (2020), using Multilevel Linear Modelling (MLM) to assess the influence of task and handedness on lateralisation strength (LI). This method allows us to test whether the heterogeneity of variance is comparable in left- and right-handers, as well as quantifying main effects of task and handedness. MLM will be conducted within R (R Core Team, 2019) using the nlme package (version 3.1-148; Pinheiro et al., 2020). Following Bruckert et al. two models will be fitted to the data. Model 1 will assume homogeneous variance model assumptions (i.e. variances between subjects and groups are equal for the two handedness groups). Model 2 will assume heterogeneous between-subject variance by group (i.e. different variances for the left and right handed group). Model fit will be assessed using a likelihood ratio test comparing Model 1 and Model 2. Coefficients for the fixed and random effects will be reported for the best fitting model. Both models will include fixed effects of handedness, task and their interaction: nlme::lme(fixed = LI ~ handedness*task, random = list(id = pdDiag(form= ~ 0 + handedness))).  
+
+We will adopt the following contrasts. For handedness, the contr.sum function from the base stats package will be used to implement summed-to-zero contrasts. This will correspond to a main effect of handedness. Helmert contrasts will be used for the task variable which compares each categorical level to the mean of the subsequent levels.
 
 
 ## Multilevel linear model
-
+This is run on the online measures
 ```{r MLL}
-for (d in 1:4){ #each dataset
-  thisdat<-mydatN
-  mylabel<-'Null data'
-   if(d==2){thisdat<-mydatS
-    mylabel<-'meanshift data'}
-    if(d==3){thisdat<-mydatM
-     mylabel<-'Mixed model data'}
-      if(d==4){thisdat<-mydatF
-     mylabel<-'Flipped% data'}
-  thisdat$id<-as.factor(1:400)
+  thisdat<-mydatF[,c(1:4,11)] #handedness, online measures, ID
+
 #First convert files to long form
 longdat <- thisdat %>% gather("task", "LI", -c(id,Lhand))
 
 longdat$task<-as.factor(longdat$task)
 longdat$hand<-as.factor(longdat$Lhand)
 
-# Nohand model - this is overkill really, just used here to demonstrate way to test if hand influences model
-modn<-lme(fixed=LI~task, 
-          random=list(id=pdSymm(form=~1)),
-          data=longdat, 
-          method="REML",contrasts=c(task='contr.helmert'))
-print(mylabel) 
-print(summary(modn))
 
 # Homogeneous (base model)
 mod0<-lme(fixed=LI~hand*task, 
           random=list(id=pdSymm(form=~1)),
           data=longdat, 
           method="REML",contrasts=c(hand='contr.sum',task='contr.helmert'))
-print(mylabel) 
+
 print(summary(mod0))
 
-#Likelihood ratio test
-LRtest1 <- anova(modn,mod0)
-print(LRtest1)
 # Heterogeneous (alternative model)
 
 mod1<-lme(fixed=LI ~ hand*task, 
@@ -307,7 +221,7 @@ print(summary(mod1))
 LRtest <- anova(mod0,mod1)
 print('Homogeneous vs heterogeneous model')
 print(LRtest)
-}
+
 ```
 
 ## Step 2
@@ -332,11 +246,11 @@ Models B1 and B2 are mathematically equivalent, differing only in the specific v
     rhyme~~ovp
     dichotic~~ovp
     "
-    #Model B 2 correlated
+    #Model B 2 correlated (ovp and dichotic)
     modelB<-"
-    rhyme~~dichotic
+    rhyme~~0*dichotic
     rhyme~~0*ovp
-    dichotic~~0*ovp"
+    dichotic~~ovp"
     
     #model C all independent
     modelC<-"
@@ -344,6 +258,7 @@ Models B1 and B2 are mathematically equivalent, differing only in the specific v
     rhyme~~0*ovp
     dichotic~~0*ovp"
 
+    #Model BB 2 correlated (ovp and rhyme)
     modelBB<-"
     rhyme~~0*dichotic
     rhyme~~ovp
@@ -352,22 +267,13 @@ Models B1 and B2 are mathematically equivalent, differing only in the specific v
 ```    
 
 ```{r runAIC}
-AICdf <- data.frame(matrix(NA,nrow=9,ncol=8))
+AICdf <- data.frame(matrix(NA,nrow=3,ncol=8))
 colnames(AICdf)<-c('dataset','hand','modelA','modelB','modelC','modelBB','bestfit','chi.p.vs.C')
 handgps <- c('All','L.only','R.only')
 thisrow<-0
 
-
-for (d in 1:4){ #d specifies which dataset we are using
-
-  thisdat<-mydatN
-  mylabel<-'Null data'
-   if(d==2){thisdat<-mydatS
-    mylabel<-'meanshift data'}
-    if(d==3){thisdat<-mydatM
-     mylabel<-'Mixed model data'}
-      if(d==4){thisdat<-mydatF
-     mylabel<-'Flipped% data'}
+thisdatall<-mydatF
+thisdat<-thisdatall
   for (h in 1:3){ #handedness grouping - all, L only, R only}
     
     
@@ -387,7 +293,7 @@ for (d in 1:4){ #d specifies which dataset we are using
    bestfit <- which(AICdf[thisrow,3:6]==max(AICdf[thisrow,3:6]))
      AICdf$bestfit[thisrow] <- LETTERS[bestfit]
      AICdf$hand[thisrow]<-handgps[h]
-     AICdf$dataset[thisrow] <- mylabel
+     AICdf$dataset[thisrow] <- 'mydatF'
 
     
  if(bestfit<3)
@@ -398,45 +304,14 @@ for (d in 1:4){ #d specifies which dataset we are using
     AICdf$chi.p.vs.C[thisrow] <- round(anova(compfit,fitC)$`Pr(>Chisq)`[2],3)
  }
  }#end of h loop
-} #end of d loop
+
 
 
 flextable(AICdf)
 ```
 
+
 # FTCD measures  
-
-We need simulated data to assess the analyses, so we start by simulating the 6 measures, assuming a 2-factor model, and again using the 'flip' approach to simulation, which assumes that there are 2 underlying distributions, left-biased and right-biased, with a higher proportion of L-handers being in the atypical group.
-
-```{r simdopF}
-mydatF <- mydatN #start by just reusing the null dataframe.
-
-mymeans <- c(.5,.75,.75) #positive is left-lateralised; more extreme for Dichotic and Rhyme
-#Because some will be flipped, need more extreme values here to be realistic
-
-mySigma <- matrix(c(1,.3,.3,.3,1,.6,.3,.6,1),nrow=3)
-#modest correlation between dichotic and rhyme; significant but lower for OVP
-myN = 400
-mydat <- mvrnorm(myN,mymeans,mySigma)
-correlate(mydat)
-
-#now flip polarity for proportion of individuals.
-mydatF[2:4]<-mydat
-
-pL <- .35  #proportion of L handers who flip
-pR <- .05 #proportion of R handers who flip
-
-
-for (i in 1:myN){
-  myp <- pR
-  if(i>199){myp <- pL}
-  if(runif(1)<myp) {mydatF[i,2:4]<-(-mydatF[i,2:4])}
-  }
-
-correlate(mydatF)
-
-```
-
 
 ## Step 3
 __The data will fit a model where 'language generation' tasks cluster together on one factor, and 'receptive language’ tasks on a second factor.__  
@@ -447,3 +322,116 @@ The analysis conducted by Woodhead et al (2019, 2020) used an exploratory bifact
  
 If the fit of the two-factor model is poor, we will divide the sample into two random halves, before proceeding to drop or add paths from the model in Figure 4 to improve fit. When the optimal model has been identified, it will then be tested in confirmatory factor analysis using the hold-out portion of the data
 
+Note that we now have only 100 participants per handedness group, so we drop half the sample for a more realistic simulation.  
+
+```{r modelfit}
+dopdat <- mydatF[c(1:100,201:300),-c(2:4)]
+
+model.h1 <- '
+f1 =~ P1 + P2 + P3
+f2 =~ R1 + R2 + R3
+
+f1 ~~ 1*f2  #single factor model, f1 and f2 constrained to covariance of one
+
+' 
+model.h2 <- '
+f1 =~ P1 + P2 + P3
+f2 =~ R1 + R2 + R3  #2 factor model: no constraint on covariance
+
+'
+
+fit1 <- cfa(model.h1, data=dopdat)
+fit2 <- cfa(model.h2, data=dopdat)
+sfit1 <-summary(fit1,fit.measures=TRUE)
+sfit2 <- summary(fit2,fit.measures=TRUE)
+
+anova(fit1,fit2)
+
+```
+
+
+## Step 4. 
+__The pattern of variances and covariances will differ for right-handers and left-handers, with better model fit being obtained when separate 2-factor models are estimated for left- vs right-handers.__
+This will be tested using the optimal model obtained from step 3.  Here this is the 2-factor model as specified above, which matched the process for simulating the data.  
+The measurement invariance command tests a series of models which progressively constrain the equality of parameters between left- and right-handed groups.
+
+```{r testLRdiffmodel}
+dopdat<-dopdat[,c(8,1:7)]
+levels(dopdat$Lhand)<-c('Right','Left')
+
+fit2a <- cfa(model.h2, data=dopdat,group="Lhand")
+
+sfit2a <- summary(fit2a,fit.measures=TRUE)
+
+measurementInvariance(model=model.h2, data=dopdat,group="Lhand")
+
+```
+
+## Step 5
+__On categorical analysis, individuals who depart from left-brained laterality on one or more tasks will be more likely to be left-handed than those who are consistently left-lateralised.__
+
+Prediction 5 moves to categorical analysis. A simple approach is to dichotomise laterality at a cutoff of zero for each task, and then perform a chi square analysis to test for association with handedness.  For 6 measures, we adopt a Bonferroni-corrected alpha level of .05/6 = .008. 
+
+```{r chisq.cats}
+#initialise catx variables: 1 for +ve and - for negative
+dopdat$catx1<-1
+dopdat$catx2<-1
+dopdat$catx3<-1
+dopdat$catx4<-1
+dopdat$catx5<-1
+dopdat$catx6<-1
+
+chitab<-data.frame(matrix(NA,ncol=11,nrow=6))
+for (mycol in 1: 6){
+  w<-which(dopdat[,(mycol+2)]<0) #find values below zero
+  dopdat[w,(mycol+8)]<-0 #recode catx value to zero
+  t<-table(dopdat[,(mycol+8)],dopdat$Lhand)
+  tp<-round(prop.table(t,2),2) #proportions by handedness
+  chitab[mycol,1]<-colnames(dopdat)[(mycol+2)]
+  chitab[mycol,c(2,4,6,8)]<-t
+  chitab[mycol,c(3,5,7,9)]<-tp
+  chitab[mycol,10] <- chisq.test(t)$statistic
+  chitab[mycol,11] <- chisq.test(t)$p.value
+}
+colnames(chitab)<-c('Measure','Rhand.Rbrain','RH.Rb%','Rhand.Lbrain','RH.Lb%','Lhand.Rbrain','LH.Rb%','Lhand.Lbrain','LH.Lb%','chisq','p')
+flextable(chitab)
+
+```
+
+# Relationship between fTCD and behavioural laterality indices  
+## Step 6
+__The laterality profile obtained with the online language battery will be significantly associated with the profile seen with direct measure of cerebral blood flow using fTCD, with laterality on dichotic listening and OVP relating more strongly to receptive language tasks, and rhyme judgement to language generation tasks.__
+
+```{r redoCFA}
+
+alldat200 <- mydatF[c(1:100,201:300),]
+
+model.h1 <- '
+f1 =~ P1 + P2 + P3 + rhyme
+f2 =~ R1 + R2 + R3 + dichotic + ovp
+
+f1 ~~ 1*f2  #single factor model, f1 and f2 constrained to covariance of one
+
+' 
+model.h2 <- '
+f1 =~ P1 + P2 + P3 + rhyme
+f2 =~ R1 + R2 + R3 + dichotic + ovp  #2 factor model: no constraint on covariance
+
+'
+
+fit1 <- cfa(model.h1, data=alldat200)
+fit2 <- cfa(model.h2, data=alldat200)
+sfit1 <-summary(fit1,fit.measures=TRUE)
+sfit2 <- summary(fit2,fit.measures=TRUE)
+
+anova(fit1,fit2)
+
+```
+
+Model 2 gives perfect fit. This is not surprising, since we simulated data assuming model 2. 
+
+## Session information
+
+```{r sessinf}
+sessionInfo()
+```
