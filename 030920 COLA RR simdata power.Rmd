@@ -182,7 +182,7 @@ mym <- c(gp,gp)
 mysigma <- matrix(c(1,.5,.5,1),nrow=2)
 myN <- 500
 gp1 <- data.frame(mvrnorm(200,mym,mysigma))
-plot(gp1,xlim=c(-2,5),ylim=c(-2,5),pch=16,cex=.7,xlab='LI Factor 1',ylab='LI Factor 2',main=paste0('Group mean = ',gp))
+plot(gp1,xlim=c(-2,5),ylim=c(-2,5),pch=16,cex=.7,xlab='Laterality Index: Factor 1',ylab='Laterality Index: Factor 2',main=paste0('Group mean = ',gp))
 abline(h=0)
 abline(v=0)
 text(-1,4.8,'A',font=2)
@@ -574,7 +574,7 @@ Models B1 and B2 are mathematically equivalent, differing only in the specific v
 #Although we have 4 models, 2 (C and D) are computationally equivalent.
 #In terms of power they will be the same, even though we are making predictions about different sets of tests.
 sim_data<-function(n=400,r=.5)
-  #we assume tasks are ovp,dichotic, and rhyme
+  #we assume tasks are wcomp,dichotic, and rhyme
 {
   
   #========================================================================#
@@ -583,11 +583,11 @@ sim_data<-function(n=400,r=.5)
                    r, r, 1),3,3,byrow=TRUE)
   data_A <- mvrnorm(n=n, mu = c(0,0,0), Sigma=sigA) #all correlated
   #========================================================================#
-  sigB <- matrix(c(1,	r,	0,
-                   r, 1, 0,
-                   0, 0, 1),3,3,byrow=TRUE)
+  sigB <- matrix(c(1,	0,	0,
+                   0, 1, r,
+                   0, r, 1),3,3,byrow=TRUE)
   data_B <- mvrnorm(n=n, mu = c(0,0,0), Sigma=sigB)
-  #ovp and dichotic correlated, rhyme independent
+  #wcomp and dichotic correlated, rhyme independent
   #========================================================================#
   sigC <- matrix(c(1,	0,	0,
                    0, 1, 0,
@@ -600,7 +600,7 @@ sim_data<-function(n=400,r=.5)
   data_B<-as.data.frame(data_B)
   data_C<-as.data.frame(data_C)
   
-  names(data_A)<-names(data_B)<-names(data_C)<-c("rhyme","dichotic","ovp")
+  names(data_A)<-names(data_B)<-names(data_C)<-c("rhyme","dichotic","wcomp")
   
   return(list(data_A=data_A,data_B=data_B,data_C=data_C))
 }
@@ -613,25 +613,25 @@ sim_data<-function(n=400,r=.5)
   #Model A all correlated
     modelA<-"
     rhyme~~dichotic
-    rhyme~~ovp
-    dichotic~~ovp
+    rhyme~~wcomp
+    dichotic~~wcomp
     "
-    #Model B 2 correlated
+    #Model B 2 receptive correlated
     modelB<-"
-    rhyme~~dichotic
-    rhyme~~0*ovp
-    dichotic~~0*ovp"
+    rhyme~~0*dichotic
+    rhyme~~0*wcomp
+    dichotic~~wcomp"
     
     #model C all independent
     modelC<-"
     rhyme~~0*dichotic
-    rhyme~~0*ovp
-    dichotic~~0*ovp"
+    rhyme~~0*wcomp
+    dichotic~~0*wcomp"
 
     modelBB<-"
     rhyme~~0*dichotic
-    rhyme~~ovp
-    dichotic~~0*ovp"
+    rhyme~~wcomp
+    dichotic~~0*wcomp"
     
 ```    
 
@@ -639,7 +639,7 @@ sim_data<-function(n=400,r=.5)
 myN <- 400 #sample size
 myr <- .5 #correlation for intercorrelated variables
 mydat<-sim_data(myN,myr)  #simulates sets of data for all 3 models
-domakedata <-0
+domakedata <-1
 niter<-1000
 if (domakedata==1){ #this is slow - can skip if you have already save AICdf
 
@@ -710,7 +710,7 @@ if(domakedata==1)
 
 ```
 
-On 1000 runs, data for 400 participants were simulated to correspond to model B1, with a correlation of .5 between rhyme judgement and OVP, and zero correlation of these LIs with dichotic listening. On `r (100*myt2[2]/niter)`% of runs, model B1 had the highest value of Akaike weights, with model A (all tests correlated) on  the other `r (100*myt2[1]/niter)`% of runs. On `r 100*powerBC` % of runs, the correct model was significantly superior to model C (zero correlation between LIs), as evidenced by a significant chi square value on likelihood ratio test between models. Model B1 always had higher Akaike weights than model B2, when the data were generated from model B1. On the other hand, if data were generated from model C, ie. a true null model, with zero correlation between the three LIs, then model B1 gave highest Akaike weights on `r (100*myt3[2]/niter)`% of runs, and model A (all correlated) gave highest Akaike weights on `r (100*myt3[1]/niter)`%  of runs. <!---warning: there might be circumstances where this lookup of power values could be out . It depends on myt3 having values for all 3 models--->
+On 1000 runs, data for 400 participants were simulated to correspond to model B1, with a correlation of .5 between rhyme judgement and wcomp, and zero correlation of these LIs with dichotic listening. On `r (100*myt2[2]/niter)`% of runs, model B1 had the highest value of Akaike weights, with model A (all tests correlated) on  the other `r (100*myt2[1]/niter)`% of runs. On `r 100*powerBC` % of runs, the correct model was significantly superior to model C (zero correlation between LIs), as evidenced by a significant chi square value on likelihood ratio test between models. Model B1 always had higher Akaike weights than model B2, when the data were generated from model B1. On the other hand, if data were generated from model C, ie. a true null model, with zero correlation between the three LIs, then model B1 gave highest Akaike weights on `r (100*myt3[2]/niter)`% of runs, and model A (all correlated) gave highest Akaike weights on `r (100*myt3[1]/niter)`%  of runs. <!---warning: there might be circumstances where this lookup of power values could be out . It depends on myt3 having values for all 3 models--->
 
 
 
